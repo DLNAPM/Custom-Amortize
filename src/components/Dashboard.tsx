@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auth, db, logout } from '../lib/firebase';
 import { collection, addDoc, getDocs, query, where, serverTimestamp, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import AmortizationCalculator from './AmortizationCalculator';
+import AdminDashboard from './AdminDashboard';
 import { AmortizationInput } from '../lib/amortization';
 import { LogOut, User, FolderOpen, Loader2, Share2, Edit2, Trash2, X, Copy, Check } from 'lucide-react';
 
@@ -68,6 +69,8 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
   const [currentScheduleName, setCurrentScheduleName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [userProfile, setUserProfile] = useState<{ role: string, tier: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'calculator' | 'admin'>('calculator');
   
   // Modals state
   const [editingProject, setEditingProject] = useState<SavedSchedule | null>(null);
@@ -93,12 +96,28 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
         await loadSharedProject(sharedProjectId);
       }
       if (!isGuest) {
-        await loadSchedules();
+        await Promise.all([loadSchedules(), loadUserProfile()]);
       }
       setIsLoading(false);
     };
     init();
   }, [isGuest, sharedProjectId]);
+
+  const loadUserProfile = async () => {
+    if (!auth.currentUser) return;
+    try {
+      const docRef = doc(db, 'users', auth.currentUser.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setUserProfile({
+          role: docSnap.data().role || 'user',
+          tier: docSnap.data().tier || 'Basic'
+        });
+      }
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+    }
+  };
 
   const loadSharedProject = async (id: string) => {
     try {
@@ -290,6 +309,26 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
               <h1 className="text-xl font-bold text-gray-900">Custom Amortize</h1>
             </div>
             <div className="flex items-center gap-4">
+              {userProfile?.role === 'admin' && (
+                <div className="flex gap-2 mr-4">
+                  <button
+                    onClick={() => setActiveTab('calculator')}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      activeTab === 'calculator' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Calculator
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('admin')}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                      activeTab === 'admin' ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    Admin
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <User className="w-4 h-4" />
                 {isGuest ? 'Guest User' : auth.currentUser?.email}
@@ -307,8 +346,12 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {isGuest && (
-          <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+        {activeTab === 'admin' ? (
+          <AdminDashboard />
+        ) : (
+          <>
+            {isGuest && (
+              <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
             <div className="flex-shrink-0 mt-0.5">
               <User className="w-5 h-5 text-blue-600" />
             </div>
@@ -397,17 +440,20 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
           </div>
         )}
 
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-          </div>
-        ) : (
-          <AmortizationCalculator 
-            key={currentSchedule ? 'loaded' : 'new'} 
-            initialData={currentSchedule} 
-            onSave={handleSaveClick}
-            isGuest={isGuest}
-          />
+            {isLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+              </div>
+            ) : (
+              <AmortizationCalculator 
+                key={currentSchedule ? 'loaded' : 'new'} 
+                initialData={currentSchedule} 
+                onSave={handleSaveClick}
+                isGuest={isGuest}
+                userTier={userProfile?.tier || 'Basic'}
+              />
+            )}
+          </>
         )}
       </main>
 

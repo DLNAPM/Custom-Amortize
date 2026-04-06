@@ -22,12 +22,22 @@
           "format": "date-time",
           "description": "Account creation timestamp"
         },
+        "role": {
+          "type": "string",
+          "enum": ["admin", "user"],
+          "description": "User role"
+        },
+        "tier": {
+          "type": "string",
+          "enum": ["Basic", "Premium"],
+          "description": "User subscription tier"
+        },
         "faceAuthEnabled": {
           "type": "boolean",
           "description": "Whether facial recognition is enabled (Premium Feature)"
         }
       },
-      "required": ["uid", "email", "createdAt"]
+      "required": ["uid", "email", "createdAt", "role", "tier"]
     },
     "AmortizationSchedule": {
       "title": "AmortizationSchedule",

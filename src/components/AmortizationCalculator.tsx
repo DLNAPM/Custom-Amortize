@@ -11,9 +11,10 @@ interface AmortizationCalculatorProps {
   initialData?: Partial<AmortizationInput>;
   onSave?: (data: AmortizationInput) => void;
   isGuest?: boolean;
+  userTier?: string;
 }
 
-export default function AmortizationCalculator({ initialData, onSave, isGuest }: AmortizationCalculatorProps) {
+export default function AmortizationCalculator({ initialData, onSave, isGuest, userTier = 'Basic' }: AmortizationCalculatorProps) {
   const [loanAmount, setLoanAmount] = useState<number>(initialData?.loanAmount || 300000);
   const [downPaymentType, setDownPaymentType] = useState<'value' | 'percent'>('percent');
   const [downPaymentValue, setDownPaymentValue] = useState<number>(20);
@@ -153,6 +154,10 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
   };
 
   const handleSmartPayments = async () => {
+    if (userTier !== 'Premium') {
+      alert("Smart Payments is a Premium feature. Please upgrade your account to use it.");
+      return;
+    }
     if (!smartPrompt.trim()) return;
     setIsGeneratingSmart(true);
     try {
@@ -471,7 +476,18 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
       </div>
 
       {/* Smart Payments (Premium) */}
-      <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-sm border border-purple-100 p-6">
+      <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-sm border border-purple-100 p-6 relative overflow-hidden">
+        {userTier !== 'Premium' && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center p-6 text-center">
+            <div className="bg-white p-4 rounded-xl shadow-lg border border-purple-100 max-w-sm">
+              <Sparkles className="w-8 h-8 text-purple-600 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Premium Feature</h3>
+              <p className="text-sm text-gray-600">
+                Upgrade to Premium to use AI-powered Smart Payments and automatically schedule your extra payments using natural language.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-5 h-5 text-purple-600" />
           <h2 className="text-lg font-bold text-purple-900">
@@ -601,9 +617,9 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
             <h3 className="text-sm font-medium text-gray-700 mb-3">Current Extra Payments</h3>
             <div className="flex flex-wrap gap-2">
               {Object.entries(extraPayments).map(([key, val]) => {
-                const isDateBased = typeof val === 'object' && val.date;
-                const amount = isDateBased ? val.amount : val;
-                const label = isDateBased ? `Date: ${format(new Date(val.date), 'MMM d, yyyy')}` : `Period ${key}`;
+                const isDateBased = typeof val === 'object' && val !== null && 'date' in val;
+                const amount = isDateBased ? (val as any).amount : val;
+                const label = isDateBased ? `Date: ${format(new Date((val as any).date), 'MMM d, yyyy')}` : `Period ${key}`;
                 
                 return (
                   <div key={key} className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm border border-blue-100">

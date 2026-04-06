@@ -12,6 +12,8 @@ service cloud.firestore {
     //   - email: string (required)
     //   - displayName: string (optional)
     //   - createdAt: timestamp (required, immutable)
+    //   - role: string (required, 'admin' or 'user')
+    //   - tier: string (required, 'Basic' or 'Premium')
     //   - faceAuthEnabled: boolean (optional)
     //
     // Collection: schedules
@@ -42,6 +44,12 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
     
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "dlaniger.napm.consulting@gmail.com" && request.auth.token.email_verified == true));
+    }
+    
     function isDocOwner() {
       return isAuthenticated() && request.auth.uid == resource.data.userId;
     }
@@ -68,12 +76,14 @@ service cloud.firestore {
     
     // Domain Validators
     function isValidUser() {
-      let allowedFields = ['uid', 'email', 'displayName', 'createdAt', 'faceAuthEnabled'];
+      let allowedFields = ['uid', 'email', 'displayName', 'createdAt', 'role', 'tier', 'faceAuthEnabled'];
       return hasOnlyAllowedFields(allowedFields) &&
-             hasRequiredFields(['uid', 'email', 'createdAt']) &&
+             hasRequiredFields(['uid', 'email', 'createdAt', 'role', 'tier']) &&
              request.resource.data.uid == request.auth.uid &&
              isValidEmail(request.resource.data.email) &&
              request.resource.data.createdAt is timestamp &&
+             (request.resource.data.role == 'admin' || request.resource.data.role == 'user') &&
+             (request.resource.data.tier == 'Basic' || request.resource.data.tier == 'Premium') &&
              (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 100)) &&
              (!('faceAuthEnabled' in request.resource.data) || request.resource.data.faceAuthEnabled is bool);
     }
@@ -98,12 +108,14 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow create: if isOwner(userId) && isValidUser();
-      allow update: if isOwner(userId) && isValidUser() && 
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser() && 
+                    ((isOwner(userId) && request.resource.data.role == 'user' && request.resource.data.tier == 'Basic') || isAdmin());
+      allow update: if isAuthenticated() && isValidUser() && 
                     request.resource.data.createdAt == resource.data.createdAt &&
-                    uidNotModified();
-      allow delete: if isOwner(userId);
+                    uidNotModified() &&
+                    ((isOwner(userId) && request.resource.data.role == resource.data.role && request.resource.data.tier == resource.data.tier) || isAdmin());
+      allow delete: if isAdmin();
     }
 
     match /schedules/{scheduleId} {

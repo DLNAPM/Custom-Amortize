@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { onAuthStateChanged, User, signInAnonymously } from 'firebase/auth';
 import { auth, db } from './lib/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import { Loader2 } from 'lucide-react';
@@ -39,15 +39,32 @@ export default function App() {
       // If a real user logs in, ensure their profile exists
       if (currentUser && !currentUser.isAnonymous) {
         try {
-          await setDoc(doc(db, 'users', currentUser.uid), {
-            uid: currentUser.uid,
-            email: currentUser.email,
-            displayName: currentUser.displayName,
-            createdAt: serverTimestamp(),
-            faceAuthEnabled: false
-          }, { merge: true });
+          const userRef = doc(db, 'users', currentUser.uid);
+          const userSnap = await getDoc(userRef);
+          
+          if (!userSnap.exists()) {
+            const isAdmin = currentUser.email === 'dlaniger.napm.consulting@gmail.com';
+            await setDoc(userRef, {
+              uid: currentUser.uid,
+              email: currentUser.email,
+              displayName: currentUser.displayName,
+              createdAt: serverTimestamp(),
+              role: isAdmin ? 'admin' : 'user',
+              tier: isAdmin ? 'Premium' : 'Basic',
+              faceAuthEnabled: false
+            });
+          } else {
+            // Force admin upgrade if needed
+            if (currentUser.email === 'dlaniger.napm.consulting@gmail.com' && 
+                (userSnap.data().role !== 'admin' || userSnap.data().tier !== 'Premium')) {
+              await setDoc(userRef, {
+                role: 'admin',
+                tier: 'Premium'
+              }, { merge: true });
+            }
+          }
         } catch (error) {
-          console.error("Error creating user profile:", error);
+          console.error("Error creating/updating user profile:", error);
         }
       }
       
