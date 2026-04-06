@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { calculateAmortization, AmortizationInput } from '../lib/amortization';
-import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2, Download, FileText, Printer } from 'lucide-react';
+import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2, Download, FileText, Printer, Sparkles, Wand2, Loader2 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { parseSmartPayments } from '../services/geminiService';
 
 interface AmortizationCalculatorProps {
   key?: string;
@@ -44,6 +45,9 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
 
   const [addExtraType, setAddExtraType] = useState<'period' | 'date'>('period');
   const [extraPaymentDate, setExtraPaymentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+
+  const [smartPrompt, setSmartPrompt] = useState("");
+  const [isGeneratingSmart, setIsGeneratingSmart] = useState(false);
 
   const [extraPaymentsHistory, setExtraPaymentsHistory] = useState<Record<string, any>[]>([]);
 
@@ -145,6 +149,37 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
         // Reset after adding
         setExtraPaymentEndPeriod('');
       }
+    }
+  };
+
+  const handleSmartPayments = async () => {
+    if (!smartPrompt.trim()) return;
+    setIsGeneratingSmart(true);
+    try {
+      const payments = await parseSmartPayments(smartPrompt, {
+        startDate,
+        loanAmount,
+        paymentsPerYear
+      });
+      
+      if (payments && payments.length > 0) {
+        saveHistory();
+        setExtraPayments(prev => {
+          const next = { ...prev };
+          payments.forEach((p, idx) => {
+            next[`smart_${Date.now()}_${idx}`] = { amount: p.amount, date: p.date };
+          });
+          return next;
+        });
+        setSmartPrompt(""); // clear on success
+      } else {
+        alert("Could not parse smart payments from your request. Please try rephrasing.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("An error occurred while generating smart payments.");
+    } finally {
+      setIsGeneratingSmart(false);
     }
   };
 
@@ -432,6 +467,41 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
               </p>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Smart Payments (Premium) */}
+      <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl shadow-sm border border-purple-100 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles className="w-5 h-5 text-purple-600" />
+          <h2 className="text-lg font-bold text-purple-900">
+            Smart Payments 
+            <span className="text-[10px] bg-purple-200 text-purple-800 px-2 py-0.5 rounded-full ml-2 uppercase tracking-wider font-bold align-middle">Premium</span>
+          </h2>
+        </div>
+        <p className="text-sm text-purple-700 mb-4">
+          Describe your future extra payments in plain English, and our AI will automatically schedule them for you. See how they affect your final payoff and balloon payments.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <textarea
+            value={smartPrompt}
+            onChange={(e) => setSmartPrompt(e.target.value)}
+            placeholder="e.g., 'Pay $500 extra every March and September for the next 5 years' or 'Apply my $5000 annual bonus every December'"
+            className="flex-1 block w-full p-3 border border-purple-200 rounded-lg focus:ring-purple-500 focus:border-purple-500 sm:text-sm resize-none bg-white"
+            rows={2}
+          />
+          <button
+            onClick={handleSmartPayments}
+            disabled={isGeneratingSmart || !smartPrompt.trim()}
+            className="px-6 py-2 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 sm:w-auto w-full h-fit self-end"
+          >
+            {isGeneratingSmart ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Wand2 className="w-4 h-4" />
+            )}
+            Generate
+          </button>
         </div>
       </div>
 
