@@ -37,11 +37,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleUpdateTier = async (uid: string, newTier: 'Basic' | 'Premium') => {
+  const handleUpdateTier = async (uid: string, newTier: 'Basic' | 'Premium', currentRole: 'admin' | 'user') => {
     setUpdating(uid);
     try {
-      await updateDoc(doc(db, 'users', uid), { tier: newTier });
-      setUsers(users.map(u => u.uid === uid ? { ...u, tier: newTier } : u));
+      await updateDoc(doc(db, 'users', uid), { tier: newTier, role: currentRole || 'user' });
+      setUsers(users.map(u => u.uid === uid ? { ...u, tier: newTier, role: currentRole || 'user' } : u));
     } catch (error) {
       console.error("Error updating user tier:", error);
       alert("Failed to update user tier.");
@@ -50,11 +50,11 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleUpdateRole = async (uid: string, newRole: 'admin' | 'user') => {
+  const handleUpdateRole = async (uid: string, newRole: 'admin' | 'user', currentTier: 'Basic' | 'Premium') => {
     setUpdating(uid);
     try {
-      await updateDoc(doc(db, 'users', uid), { role: newRole });
-      setUsers(users.map(u => u.uid === uid ? { ...u, role: newRole } : u));
+      await updateDoc(doc(db, 'users', uid), { role: newRole, tier: currentTier || 'Basic' });
+      setUsers(users.map(u => u.uid === uid ? { ...u, role: newRole, tier: currentTier || 'Basic' } : u));
     } catch (error) {
       console.error("Error updating user role:", error);
       alert("Failed to update user role.");
@@ -170,8 +170,8 @@ export default function AdminDashboard() {
                     <td className="p-4 text-right">
                       <div className="flex items-center justify-end gap-2">
                         <select
-                          value={user.tier}
-                          onChange={(e) => handleUpdateTier(user.uid, e.target.value as 'Basic' | 'Premium')}
+                          value={user.tier || 'Basic'}
+                          onChange={(e) => handleUpdateTier(user.uid, e.target.value as 'Basic' | 'Premium', user.role)}
                           disabled={updating === user.uid}
                           className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
                         >
@@ -179,8 +179,8 @@ export default function AdminDashboard() {
                           <option value="Premium">Premium</option>
                         </select>
                         <select
-                          value={user.role}
-                          onChange={(e) => handleUpdateRole(user.uid, e.target.value as 'admin' | 'user')}
+                          value={user.role || 'user'}
+                          onChange={(e) => handleUpdateRole(user.uid, e.target.value as 'admin' | 'user', user.tier)}
                           disabled={updating === user.uid || user.email === 'dlaniger.napm.consulting@gmail.com'}
                           className="text-sm border border-gray-300 rounded-md px-2 py-1 focus:ring-blue-500 focus:border-blue-500"
                         >
