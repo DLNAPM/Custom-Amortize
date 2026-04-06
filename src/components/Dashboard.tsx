@@ -76,6 +76,14 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   
+  // Save Modals state
+  const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [saveNameInput, setSaveNameInput] = useState('');
+  const [saveInputData, setSaveInputData] = useState<AmortizationInput | null>(null);
+  const [overwriteConfirmOpen, setOverwriteConfirmOpen] = useState(false);
+  const [projectToOverwrite, setProjectToOverwrite] = useState<SavedSchedule | null>(null);
+  const [guestAlertOpen, setGuestAlertOpen] = useState(false);
+  
   const isGuest = auth.currentUser?.isAnonymous;
 
   useEffect(() => {
@@ -151,17 +159,45 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
     }
   };
 
-  const handleSave = async (input: AmortizationInput) => {
-    if (!auth.currentUser || isGuest) return;
+  const handleSaveClick = (input: AmortizationInput) => {
+    if (!auth.currentUser || isGuest) {
+      setGuestAlertOpen(true);
+      return;
+    }
     
-    // If we are viewing a shared project, we save it as a new copy
-    const defaultName = currentScheduleName ? `${currentScheduleName} (Copy)` : "My Mortgage";
-    const name = prompt("Enter a name for this schedule:", defaultName);
-    if (!name) return;
+    const defaultName = currentScheduleName ? (sharedProjectId ? `${currentScheduleName} (Copy)` : currentScheduleName) : "My Mortgage";
+    setSaveNameInput(defaultName);
+    setSaveInputData(input);
+    setSaveModalOpen(true);
+  };
+
+  const handleSaveSubmit = async () => {
+    if (!saveNameInput.trim() || !saveInputData) return;
+    
+    const existing = savedSchedules.find(s => s.name === saveNameInput.trim());
+    if (existing) {
+      setProjectToOverwrite(existing);
+      setOverwriteConfirmOpen(true);
+      setSaveModalOpen(false);
+      return;
+    }
+    
+    await performSave(saveNameInput.trim(), saveInputData);
+    setSaveModalOpen(false);
+  };
+
+  const handleOverwriteConfirm = async () => {
+    if (!projectToOverwrite || !saveInputData) return;
+    await performSave(projectToOverwrite.name, saveInputData, projectToOverwrite.id);
+    setOverwriteConfirmOpen(false);
+  };
+
+  const performSave = async (name: string, input: AmortizationInput, existingId?: string) => {
+    if (!auth.currentUser) return;
 
     setIsSaving(true);
     try {
-      await addDoc(collection(db, 'schedules'), {
+      const scheduleData = {
         userId: auth.currentUser.uid,
         name,
         loanAmount: input.loanAmount,
@@ -172,16 +208,23 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
         monthlyExtraPayment: input.monthlyExtraPayment,
         extraPayments: input.extraPayments,
         startDate: input.startDate.toISOString(),
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      };
+
+      if (existingId) {
+        await updateDoc(doc(db, 'schedules', existingId), scheduleData);
+      } else {
+        await addDoc(collection(db, 'schedules'), {
+          ...scheduleData,
+          createdAt: serverTimestamp()
+        });
+      }
+      
       await loadSchedules();
-      // Remove shared project ID from URL so we are now viewing our own
       if (sharedProjectId) {
         window.history.replaceState({}, document.title, window.location.pathname);
-        setCurrentScheduleName(name);
       }
-      alert("Schedule saved successfully!");
+      setCurrentScheduleName(name);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'schedules');
     } finally {
@@ -356,11 +399,94 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
           <AmortizationCalculator 
             key={currentSchedule ? 'loaded' : 'new'} 
             initialData={currentSchedule} 
-            onSave={handleSave}
+            onSave={handleSaveClick}
             isGuest={isGuest}
           />
         )}
       </main>
+
+      {/* Guest Alert Modal */}
+      {guestAlertOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Sign In Required</h3>
+            <p className="text-gray-600 mb-6">Please sign in to save your schedule.</p>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setGuestAlertOpen(false)}
+                className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Modal */}
+      {saveModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Save Schedule</h3>
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+              <input
+                type="text"
+                value={saveNameInput}
+                onChange={(e) => setSaveNameInput(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                placeholder="My Mortgage"
+                autoFocus
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setSaveModalOpen(false)}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveSubmit}
+                disabled={!saveNameInput.trim() || isSaving}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50"
+              >
+                {isSaving ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Overwrite Confirm Modal */}
+      {overwriteConfirmOpen && projectToOverwrite && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Overwrite Project?</h3>
+            <p className="text-gray-600 mb-6">
+              A schedule named "{projectToOverwrite.name}" already exists. Do you want to overwrite it with your current changes?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setOverwriteConfirmOpen(false);
+                  setSaveModalOpen(true);
+                }}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-medium text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleOverwriteConfirm}
+                disabled={isSaving}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm disabled:opacity-50"
+              >
+                {isSaving ? 'Saving...' : 'Overwrite'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Edit Name Modal */}
       {editingProject && (
