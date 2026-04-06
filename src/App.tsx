@@ -58,6 +58,9 @@ export default function App() {
             if (currentUser.email === 'dlaniger.napm.consulting@gmail.com' && 
                 (userSnap.data().role !== 'admin' || userSnap.data().tier !== 'Premium')) {
               await setDoc(userRef, {
+                uid: currentUser.uid,
+                email: currentUser.email,
+                createdAt: userSnap.data().createdAt || serverTimestamp(),
                 role: 'admin',
                 tier: 'Premium'
               }, { merge: true });
