@@ -9,6 +9,7 @@ import { auth, db } from './lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
+import HelpModal from './components/HelpModal';
 import { Loader2 } from 'lucide-react';
 
 export default function App() {
@@ -85,5 +86,10 @@ export default function App() {
     );
   }
 
-  return user ? <Dashboard sharedProjectId={sharedProjectId} /> : <Auth />;
+  return (
+    <>
+      {user ? <Dashboard sharedProjectId={sharedProjectId} /> : <Auth />}
+      <HelpModal />
+    </>
+  );
 }
