@@ -1,11 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
 export async function parseSmartPayments(
   prompt: string,
   loanContext: { startDate: string; loanAmount: number; paymentsPerYear: number }
 ) {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `User request: ${prompt}\n\nLoan Context: Start Date: ${loanContext.startDate}, Loan Amount: ${loanContext.loanAmount}, Payments Per Year: ${loanContext.paymentsPerYear}. Generate the exact dates and amounts for these extra payments.`,
