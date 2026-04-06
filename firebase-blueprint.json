@@ -1,0 +1,108 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Account creation timestamp"
+        },
+        "faceAuthEnabled": {
+          "type": "boolean",
+          "description": "Whether facial recognition is enabled (Premium Feature)"
+        }
+      },
+      "required": ["uid", "email", "createdAt"]
+    },
+    "AmortizationSchedule": {
+      "title": "AmortizationSchedule",
+      "description": "A saved amortization schedule",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner UID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the schedule (e.g., 'My Mortgage')"
+        },
+        "loanAmount": {
+          "type": "number",
+          "description": "Original Loan Amount"
+        },
+        "downPayment": {
+          "type": "number",
+          "description": "Down Payment (Value)"
+        },
+        "annualInterestRate": {
+          "type": "number",
+          "description": "Annual Interest Rate (Percentage)"
+        },
+        "loanTermYears": {
+          "type": "number",
+          "description": "Loan term in years"
+        },
+        "paymentsPerYear": {
+          "type": "number",
+          "description": "Number of payments per year"
+        },
+        "extraPayments": {
+          "type": "object",
+          "description": "Map of period index to extra principal payment amount",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "monthlyExtraPayment": {
+          "type": "number",
+          "description": "Extra principal payment applied every period"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Start Date of the first payment"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      },
+      "required": ["userId", "name", "loanAmount", "downPayment", "annualInterestRate", "loanTermYears", "paymentsPerYear", "monthlyExtraPayment", "startDate", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "User profiles"
+    },
+    "/schedules/{scheduleId}": {
+      "schema": {
+        "$ref": "#/entities/AmortizationSchedule"
+      },
+      "description": "Saved amortization schedules"
+    }
+  }
+}

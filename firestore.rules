@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - createdAt: timestamp (required, immutable)
+    //   - faceAuthEnabled: boolean (optional)
+    //
+    // Collection: schedules
+    // Document ID: {scheduleId}
+    // Fields:
+    //   - userId: string (required, immutable)
+    //   - name: string (required)
+    //   - loanAmount: number (required)
+    //   - downPayment: number (required)
+    //   - annualInterestRate: number (required)
+    //   - loanTermYears: number (required)
+    //   - paymentsPerYear: number (required)
+    //   - monthlyExtraPayment: number (required)
+    //   - extraPayments: map (optional)
+    //   - startDate: string (required)
+    //   - createdAt: timestamp (required, immutable)
+    //   - updatedAt: timestamp (required)
+    //
+    // ===============================================================
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+    
+    // Domain Validators
+    function isValidUser() {
+      let allowedFields = ['uid', 'email', 'displayName', 'createdAt', 'faceAuthEnabled'];
+      return hasOnlyAllowedFields(allowedFields) &&
+             hasRequiredFields(['uid', 'email', 'createdAt']) &&
+             request.resource.data.uid == request.auth.uid &&
+             isValidEmail(request.resource.data.email) &&
+             request.resource.data.createdAt is timestamp &&
+             (!('displayName' in request.resource.data) || (request.resource.data.displayName is string && request.resource.data.displayName.size() <= 100)) &&
+             (!('faceAuthEnabled' in request.resource.data) || request.resource.data.faceAuthEnabled is bool);
+    }
+    
+    function isValidSchedule() {
+      let allowedFields = ['userId', 'name', 'loanAmount', 'downPayment', 'annualInterestRate', 'loanTermYears', 'paymentsPerYear', 'monthlyExtraPayment', 'extraPayments', 'startDate', 'createdAt', 'updatedAt'];
+      return hasOnlyAllowedFields(allowedFields) &&
+             hasRequiredFields(['userId', 'name', 'loanAmount', 'downPayment', 'annualInterestRate', 'loanTermYears', 'paymentsPerYear', 'monthlyExtraPayment', 'startDate', 'createdAt', 'updatedAt']) &&
+             request.resource.data.userId == request.auth.uid &&
+             request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100 &&
+             request.resource.data.loanAmount is number && request.resource.data.loanAmount >= 0 &&
+             request.resource.data.downPayment is number && request.resource.data.downPayment >= 0 &&
+             request.resource.data.annualInterestRate is number && request.resource.data.annualInterestRate >= 0 &&
+             request.resource.data.loanTermYears is number && request.resource.data.loanTermYears > 0 &&
+             request.resource.data.paymentsPerYear is number && request.resource.data.paymentsPerYear > 0 &&
+             request.resource.data.monthlyExtraPayment is number && request.resource.data.monthlyExtraPayment >= 0 &&
+             request.resource.data.startDate is string && request.resource.data.startDate.size() > 0 && request.resource.data.startDate.size() <= 30 &&
+             request.resource.data.createdAt is timestamp &&
+             request.resource.data.updatedAt is timestamp &&
+             (!('extraPayments' in request.resource.data) || request.resource.data.extraPayments is map);
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser();
+      allow update: if isOwner(userId) && isValidUser() && 
+                    request.resource.data.createdAt == resource.data.createdAt &&
+                    uidNotModified();
+      allow delete: if isOwner(userId);
+    }
+
+    match /schedules/{scheduleId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidSchedule();
+      allow update: if isDocOwner() && isValidSchedule() &&
+                    request.resource.data.createdAt == resource.data.createdAt &&
+                    request.resource.data.userId == resource.data.userId;
+      allow delete: if isDocOwner();
+    }
+  }
+}
