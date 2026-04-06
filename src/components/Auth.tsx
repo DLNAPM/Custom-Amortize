@@ -123,16 +123,74 @@ export default function Auth() {
           {/* Image Section */}
           <div className="relative lg:ml-auto w-full max-w-lg">
             <div className="absolute inset-0 bg-gradient-to-tr from-blue-100 to-indigo-50 rounded-3xl transform rotate-3 scale-105"></div>
-            {/* 
-              NOTE: Replace the src below with the actual path to your attached PNG file.
-              If you uploaded it to the project, it might be something like '/your-image-name.png'
-            */}
-            <img 
-              src="https://picsum.photos/seed/amortize/800/600" 
-              alt="Custom Amortize Dashboard Preview" 
-              className="relative rounded-2xl shadow-2xl border border-gray-200 w-full object-cover aspect-[4/3]"
-              referrerPolicy="no-referrer"
-            />
+            {/* Truncated Amortize Report UI */}
+            <div className="relative rounded-2xl shadow-2xl border border-gray-200 w-full bg-white overflow-hidden aspect-[4/3] flex flex-col">
+              {/* Report Header */}
+              <div className="bg-gray-50 border-b border-gray-200 p-4 flex justify-between items-center">
+                <div>
+                  <h4 className="font-semibold text-gray-900 text-sm">Amortization Schedule</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Loan Amount: $250,000 • 30 Years</p>
+                </div>
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-400"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-400"></div>
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-400"></div>
+                </div>
+              </div>
+              {/* Report Table */}
+              <div className="p-0 flex-1 overflow-hidden relative">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-gray-500 uppercase bg-gray-50/50">
+                    <tr>
+                      <th className="px-4 py-3 font-medium">Pmt #</th>
+                      <th className="px-4 py-3 font-medium">Payment</th>
+                      <th className="px-4 py-3 font-medium">Principal</th>
+                      <th className="px-4 py-3 font-medium">Interest</th>
+                      <th className="px-4 py-3 font-medium">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 text-gray-600">
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">1</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">$1,342.05</td>
+                      <td className="px-4 py-3 text-green-600">$300.38</td>
+                      <td className="px-4 py-3 text-red-500">$1,041.67</td>
+                      <td className="px-4 py-3 font-medium">$249,699.62</td>
+                    </tr>
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">2</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">$1,342.05</td>
+                      <td className="px-4 py-3 text-green-600">$301.63</td>
+                      <td className="px-4 py-3 text-red-500">$1,040.42</td>
+                      <td className="px-4 py-3 font-medium">$249,397.99</td>
+                    </tr>
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">3</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">$1,342.05</td>
+                      <td className="px-4 py-3 text-green-600">$302.89</td>
+                      <td className="px-4 py-3 text-red-500">$1,039.16</td>
+                      <td className="px-4 py-3 font-medium">$249,095.10</td>
+                    </tr>
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">4</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">$1,342.05</td>
+                      <td className="px-4 py-3 text-green-600">$304.15</td>
+                      <td className="px-4 py-3 text-red-500">$1,037.90</td>
+                      <td className="px-4 py-3 font-medium">$248,790.95</td>
+                    </tr>
+                    <tr className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">5</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">$1,342.05</td>
+                      <td className="px-4 py-3 text-green-600">$305.42</td>
+                      <td className="px-4 py-3 text-red-500">$1,036.63</td>
+                      <td className="px-4 py-3 font-medium">$248,485.53</td>
+                    </tr>
+                  </tbody>
+                </table>
+                {/* Fade out effect at the bottom to show it's truncated */}
+                <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-white via-white/80 to-transparent pointer-events-none"></div>
+              </div>
+            </div>
             
             {/* Floating Badge */}
             <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-xl shadow-xl border border-gray-100 animate-bounce" style={{ animationDuration: '3s' }}>
