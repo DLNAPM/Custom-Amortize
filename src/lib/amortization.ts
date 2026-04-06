@@ -16,6 +16,9 @@ export interface AmortizationSummary {
   actualPaymentsCount: number;
   totalExtraPayments: number;
   totalInterest: number;
+  totalCost: number;
+  balloonPaymentAmount?: number;
+  currentBalance: number;
   payoffDate: Date;
 }
 
@@ -57,6 +60,8 @@ export function calculateAmortization(input: AmortizationInput): {
         actualPaymentsCount: 0,
         totalExtraPayments: 0,
         totalInterest: 0,
+        totalCost: 0,
+        currentBalance: 0,
         payoffDate: startDate
       }
     };
@@ -194,6 +199,18 @@ export function calculateAmortization(input: AmortizationInput): {
     }
   }
 
+  const balloonPaymentRow = schedule.find(row => row.isBalloonPayment);
+
+  const now = new Date();
+  let currentBalance = principal;
+  for (const row of schedule) {
+    if (row.date <= now) {
+      currentBalance = row.balance;
+    } else {
+      break;
+    }
+  }
+
   return {
     schedule,
     summary: {
@@ -202,6 +219,9 @@ export function calculateAmortization(input: AmortizationInput): {
       actualPaymentsCount,
       totalExtraPayments,
       totalInterest,
+      totalCost: principal + totalInterest,
+      balloonPaymentAmount: balloonPaymentRow ? balloonPaymentRow.totalPayment : undefined,
+      currentBalance,
       payoffDate: schedule.length > 0 ? schedule[schedule.length - 1].date : startDate
     }
   };

@@ -392,15 +392,29 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
       {/* Summary Section */}
       <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl shadow-lg p-6 text-white">
         <h2 className="text-xl font-bold mb-6">Loan Summary</h2>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-6">
           <div>
             <p className="text-blue-200 text-sm font-medium mb-1">Scheduled Payment</p>
             <p className="text-2xl font-bold">{formatCurrency(summary.scheduledPayment)}</p>
           </div>
           <div>
+            <p className="text-blue-200 text-sm font-medium mb-1">Current Balance</p>
+            <p className="text-2xl font-bold text-green-300">{formatCurrency(summary.currentBalance)}</p>
+          </div>
+          <div>
             <p className="text-blue-200 text-sm font-medium mb-1">Total Interest</p>
             <p className="text-2xl font-bold">{formatCurrency(summary.totalInterest)}</p>
           </div>
+          <div>
+            <p className="text-blue-200 text-sm font-medium mb-1">Total Cost</p>
+            <p className="text-2xl font-bold">{formatCurrency(summary.totalCost)}</p>
+          </div>
+          {summary.balloonPaymentAmount !== undefined && (
+            <div>
+              <p className="text-yellow-200 text-sm font-medium mb-1">Balloon Payment Due</p>
+              <p className="text-2xl font-bold text-yellow-100">{formatCurrency(summary.balloonPaymentAmount)}</p>
+            </div>
+          )}
           <div>
             <p className="text-blue-200 text-sm font-medium mb-1">Total Extra Payments</p>
             <p className="text-2xl font-bold">{formatCurrency(summary.totalExtraPayments)}</p>
