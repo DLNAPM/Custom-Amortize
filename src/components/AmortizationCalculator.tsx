@@ -19,6 +19,7 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
   const [annualInterestRate, setAnnualInterestRate] = useState<number>(initialData?.annualInterestRate || 5.5);
   const [loanTermYears, setLoanTermYears] = useState<number>(initialData?.loanTermYears || 30);
   const [paymentsPerYear, setPaymentsPerYear] = useState<number>(initialData?.paymentsPerYear || 12);
+  const [balloonPaymentYears, setBalloonPaymentYears] = useState<number | ''>(initialData?.balloonPaymentYears || '');
   const [monthlyExtraPayment, setMonthlyExtraPayment] = useState<number>(initialData?.monthlyExtraPayment || 0);
   const [extraPayments, setExtraPayments] = useState<Record<string, any>>(initialData?.extraPayments || {});
   const [startDate, setStartDate] = useState<string>(() => {
@@ -104,12 +105,13 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
     paymentsPerYear,
     monthlyExtraPayment,
     extraPayments,
+    balloonPaymentYears: balloonPaymentYears === '' ? undefined : Number(balloonPaymentYears),
     startDate: (() => {
       if (!startDate) return new Date();
       const d = new Date(startDate + 'T12:00:00');
       return isNaN(d.getTime()) ? new Date() : d;
     })()
-  }), [loanAmount, actualDownPayment, annualInterestRate, loanTermYears, paymentsPerYear, monthlyExtraPayment, extraPayments, startDate]);
+  }), [loanAmount, actualDownPayment, annualInterestRate, loanTermYears, paymentsPerYear, monthlyExtraPayment, extraPayments, balloonPaymentYears, startDate]);
 
   const { schedule, summary } = useMemo(() => calculateAmortization(input), [input]);
 
@@ -354,6 +356,24 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
               />
             </div>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Balloon Payment (in Years)</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Calendar className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="number"
+                min={1}
+                max={loanTermYears}
+                value={balloonPaymentYears}
+                onChange={(e) => setBalloonPaymentYears(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder="Optional"
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+          </div>
         </div>
 
         {onSave && !isGuest && (
@@ -565,10 +585,13 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
               {schedule.map((row, idx) => (
                 <tr 
                   key={`${row.period}-${idx}`} 
-                  className={`${row.extraPayment > 0 ? 'bg-blue-50/50' : ''} hover:bg-gray-50 transition-colors ${typeof row.period === 'number' ? 'cursor-context-menu' : ''}`}
+                  className={`${row.isBalloonPayment ? 'bg-yellow-50/80 border-y-2 border-yellow-200' : row.extraPayment > 0 ? 'bg-blue-50/50' : ''} hover:bg-gray-50 transition-colors ${typeof row.period === 'number' ? 'cursor-context-menu' : ''}`}
                   onContextMenu={(e) => typeof row.period === 'number' ? handleContextMenu(e, row.period) : undefined}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.period}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {row.period}
+                    {row.isBalloonPayment && <span className="ml-2 text-xs font-bold text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full">Balloon</span>}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{!isNaN(row.date.getTime()) ? format(row.date, 'MMM yyyy') : 'Invalid Date'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(row.scheduledPayment)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right">

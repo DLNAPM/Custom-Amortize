@@ -7,6 +7,7 @@ export interface AmortizationRow {
   principal: number;
   interest: number;
   balance: number;
+  isBalloonPayment?: boolean;
 }
 
 export interface AmortizationSummary {
@@ -26,6 +27,7 @@ export interface AmortizationInput {
   paymentsPerYear: number;
   monthlyExtraPayment: number;
   extraPayments: Record<string, any>; // period -> amount OR id -> { amount, date }
+  balloonPaymentYears?: number;
   startDate: Date;
 }
 
@@ -41,6 +43,7 @@ export function calculateAmortization(input: AmortizationInput): {
     paymentsPerYear,
     monthlyExtraPayment,
     extraPayments,
+    balloonPaymentYears,
     startDate
   } = input;
 
@@ -144,6 +147,12 @@ export function calculateAmortization(input: AmortizationInput): {
         extraPayment = (balance + interest) - currentScheduledPayment;
       }
 
+      let isBalloonPayment = false;
+      if (balloonPaymentYears && period === balloonPaymentYears * paymentsPerYear) {
+        isBalloonPayment = true;
+        extraPayment = (balance + interest) - currentScheduledPayment;
+      }
+
       const totalPayment = currentScheduledPayment + extraPayment;
       const principalPayment = totalPayment - interest;
       
@@ -162,7 +171,8 @@ export function calculateAmortization(input: AmortizationInput): {
         totalPayment,
         principal: principalPayment,
         interest,
-        balance
+        balance,
+        isBalloonPayment
       });
     } else if (event.type === 'extra') {
       const appliedExtra = Math.min(balance, event.amount!);

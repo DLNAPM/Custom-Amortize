@@ -114,6 +114,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
           paymentsPerYear: data.paymentsPerYear,
           monthlyExtraPayment: data.monthlyExtraPayment || 0,
           extraPayments: data.extraPayments || {},
+          balloonPaymentYears: data.balloonPaymentYears,
           startDate: data.startDate ? new Date(data.startDate) : new Date(),
         });
         setCurrentScheduleName(data.name);
@@ -147,6 +148,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
             paymentsPerYear: data.paymentsPerYear,
             monthlyExtraPayment: data.monthlyExtraPayment || 0,
             extraPayments: data.extraPayments || {},
+            balloonPaymentYears: data.balloonPaymentYears,
             startDate: data.startDate ? new Date(data.startDate) : new Date(),
           }
         });
@@ -197,7 +199,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
 
     setIsSaving(true);
     try {
-      const scheduleData = {
+      const scheduleData: any = {
         userId: auth.currentUser.uid,
         name,
         loanAmount: input.loanAmount,
@@ -210,6 +212,10 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
         startDate: input.startDate.toISOString(),
         updatedAt: serverTimestamp()
       };
+      
+      if (input.balloonPaymentYears !== undefined) {
+        scheduleData.balloonPaymentYears = input.balloonPaymentYears;
+      }
 
       if (existingId) {
         await updateDoc(doc(db, 'schedules', existingId), scheduleData);

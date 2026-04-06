@@ -66,6 +66,10 @@
           "type": "object",
           "description": "Map of period index or date ID to extra principal payment amount or object"
         },
+        "balloonPaymentYears": {
+          "type": "number",
+          "description": "Number of years until the balloon payment is due"
+        },
         "monthlyExtraPayment": {
           "type": "number",
           "description": "Extra principal payment applied every period"
