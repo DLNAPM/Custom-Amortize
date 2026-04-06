@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { calculateAmortization, AmortizationInput } from '../lib/amortization';
-import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X } from 'lucide-react';
+import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2 } from 'lucide-react';
 
 interface AmortizationCalculatorProps {
   key?: string;
@@ -18,7 +18,7 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
   const [loanTermYears, setLoanTermYears] = useState<number>(initialData?.loanTermYears || 30);
   const [paymentsPerYear, setPaymentsPerYear] = useState<number>(initialData?.paymentsPerYear || 12);
   const [monthlyExtraPayment, setMonthlyExtraPayment] = useState<number>(initialData?.monthlyExtraPayment || 0);
-  const [extraPayments, setExtraPayments] = useState<Record<number, number>>(initialData?.extraPayments || {});
+  const [extraPayments, setExtraPayments] = useState<Record<string, any>>(initialData?.extraPayments || {});
   const [startDate, setStartDate] = useState<string>(() => {
     try {
       if (initialData?.startDate && !isNaN(initialData.startDate.getTime())) {
@@ -39,6 +39,27 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
   const [quickAddCount, setQuickAddCount] = useState<number>(1);
   const [quickAddAmount, setQuickAddAmount] = useState<number>(100);
 
+  const [addExtraType, setAddExtraType] = useState<'period' | 'date'>('period');
+  const [extraPaymentDate, setExtraPaymentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+
+  const [extraPaymentsHistory, setExtraPaymentsHistory] = useState<Record<string, any>[]>([]);
+
+  const saveHistory = () => {
+    setExtraPaymentsHistory(prev => [...prev, extraPayments]);
+  };
+
+  const handleUndo = () => {
+    setExtraPaymentsHistory(prev => {
+      if (prev.length === 0) return prev;
+      const newHistory = [...prev];
+      const previousState = newHistory.pop();
+      if (previousState) {
+        setExtraPayments(previousState);
+      }
+      return newHistory;
+    });
+  };
+
   useEffect(() => {
     const handleClick = () => setContextMenu(null);
     document.addEventListener('click', handleClick);
@@ -53,6 +74,7 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
   const handleQuickAddSubmit = () => {
     if (!quickAddModal || quickAddAmount <= 0 || quickAddCount <= 0) return;
     
+    saveHistory();
     setExtraPayments(prev => {
       const next = { ...prev };
       for (let i = 0; i < quickAddCount; i++) {
@@ -90,28 +112,43 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
   const { schedule, summary } = useMemo(() => calculateAmortization(input), [input]);
 
   const handleAddExtraPayment = () => {
-    if (extraPaymentPeriod > 0 && extraPaymentAmount > 0) {
-      const end = extraPaymentEndPeriod === '' ? extraPaymentPeriod : Number(extraPaymentEndPeriod);
-      const start = Math.min(extraPaymentPeriod, end);
-      const finalEnd = Math.max(extraPaymentPeriod, end);
-      
-      setExtraPayments(prev => {
-        const next = { ...prev };
-        for (let i = start; i <= finalEnd; i++) {
-          next[i] = (next[i] || 0) + extraPaymentAmount;
-        }
-        return next;
-      });
-      
-      // Reset after adding
-      setExtraPaymentEndPeriod('');
+    if (extraPaymentAmount <= 0) return;
+    
+    saveHistory();
+    
+    if (addExtraType === 'date') {
+      if (!extraPaymentDate) return;
+      setExtraPayments(prev => ({
+        ...prev,
+        [`date_${Date.now()}`]: { amount: extraPaymentAmount, date: extraPaymentDate }
+      }));
+    } else {
+      if (extraPaymentPeriod > 0) {
+        const end = extraPaymentEndPeriod === '' ? extraPaymentPeriod : Number(extraPaymentEndPeriod);
+        const start = Math.min(extraPaymentPeriod, end);
+        const finalEnd = Math.max(extraPaymentPeriod, end);
+        
+        setExtraPayments(prev => {
+          const next = { ...prev };
+          for (let i = start; i <= finalEnd; i++) {
+            const existing = next[i];
+            const existingAmount = typeof existing === 'number' ? existing : (existing?.amount || 0);
+            next[i] = existingAmount + extraPaymentAmount;
+          }
+          return next;
+        });
+        
+        // Reset after adding
+        setExtraPaymentEndPeriod('');
+      }
     }
   };
 
-  const handleRemoveExtraPayment = (period: number) => {
+  const handleRemoveExtraPayment = (key: string) => {
+    saveHistory();
     setExtraPayments(prev => {
       const next = { ...prev };
-      delete next[period];
+      delete next[key];
       return next;
     });
   };
@@ -287,31 +324,71 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
 
       {/* Extra Payments Manager */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Add Extra Principal Payment</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-bold text-gray-900">Add Extra Principal Payment</h2>
+          {extraPaymentsHistory.length > 0 && (
+            <button
+              onClick={handleUndo}
+              className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <Undo2 className="w-4 h-4" />
+              Undo
+            </button>
+          )}
+        </div>
+        <div className="mb-4 flex gap-4 border-b border-gray-200 pb-2">
+          <button
+            onClick={() => setAddExtraType('period')}
+            className={`text-sm font-medium px-2 py-1 border-b-2 transition-colors ${addExtraType === 'period' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            By Period
+          </button>
+          <button
+            onClick={() => setAddExtraType('date')}
+            className={`text-sm font-medium px-2 py-1 border-b-2 transition-colors ${addExtraType === 'date' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            By Date
+          </button>
+        </div>
+
         <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Start Period</label>
-            <input
-              type="number"
-              min={1}
-              max={summary.scheduledPaymentsCount}
-              value={extraPaymentPeriod}
-              onChange={(e) => setExtraPaymentPeriod(Number(e.target.value))}
-              className="block w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">End Period (Optional)</label>
-            <input
-              type="number"
-              min={extraPaymentPeriod}
-              max={summary.scheduledPaymentsCount}
-              value={extraPaymentEndPeriod}
-              onChange={(e) => setExtraPaymentEndPeriod(e.target.value === '' ? '' : Number(e.target.value))}
-              placeholder="e.g. 12"
-              className="block w-36 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
-          </div>
+          {addExtraType === 'period' ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Period</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={summary.scheduledPaymentsCount}
+                  value={extraPaymentPeriod}
+                  onChange={(e) => setExtraPaymentPeriod(Number(e.target.value))}
+                  className="block w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Period (Optional)</label>
+                <input
+                  type="number"
+                  min={extraPaymentPeriod}
+                  max={summary.scheduledPaymentsCount}
+                  value={extraPaymentEndPeriod}
+                  onChange={(e) => setExtraPaymentEndPeriod(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="e.g. 12"
+                  className="block w-36 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+              <input
+                type="date"
+                value={extraPaymentDate}
+                onChange={(e) => setExtraPaymentDate(e.target.value)}
+                className="block w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Extra Amount</label>
             <div className="relative">
@@ -340,18 +417,24 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
           <div className="mt-6">
             <h3 className="text-sm font-medium text-gray-700 mb-3">Current Extra Payments</h3>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(extraPayments).map(([period, amount]) => (
-                <div key={period} className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm border border-blue-100">
-                  <span className="font-medium">Period {period}:</span>
-                  <span>{formatCurrency(amount as number)}</span>
-                  <button
-                    onClick={() => handleRemoveExtraPayment(Number(period))}
-                    className="ml-1 text-blue-400 hover:text-blue-600 focus:outline-none"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+              {Object.entries(extraPayments).map(([key, val]) => {
+                const isDateBased = typeof val === 'object' && val.date;
+                const amount = isDateBased ? val.amount : val;
+                const label = isDateBased ? `Date: ${format(new Date(val.date), 'MMM d, yyyy')}` : `Period ${key}`;
+                
+                return (
+                  <div key={key} className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1.5 rounded-full text-sm border border-blue-100">
+                    <span className="font-medium">{label}:</span>
+                    <span>{formatCurrency(amount as number)}</span>
+                    <button
+                      onClick={() => handleRemoveExtraPayment(key)}
+                      className="ml-1 text-blue-400 hover:text-blue-600 focus:outline-none"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -377,11 +460,11 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {schedule.map((row) => (
+              {schedule.map((row, idx) => (
                 <tr 
-                  key={row.period} 
-                  className={`${row.extraPayment > 0 ? 'bg-blue-50/50' : ''} hover:bg-gray-50 transition-colors cursor-context-menu`}
-                  onContextMenu={(e) => handleContextMenu(e, row.period)}
+                  key={`${row.period}-${idx}`} 
+                  className={`${row.extraPayment > 0 ? 'bg-blue-50/50' : ''} hover:bg-gray-50 transition-colors ${typeof row.period === 'number' ? 'cursor-context-menu' : ''}`}
+                  onContextMenu={(e) => typeof row.period === 'number' ? handleContextMenu(e, row.period) : undefined}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.period}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{!isNaN(row.date.getTime()) ? format(row.date, 'MMM yyyy') : 'Invalid Date'}</td>

@@ -64,10 +64,7 @@
         },
         "extraPayments": {
           "type": "object",
-          "description": "Map of period index to extra principal payment amount",
-          "additionalProperties": {
-            "type": "number"
-          }
+          "description": "Map of period index or date ID to extra principal payment amount or object"
         },
         "monthlyExtraPayment": {
           "type": "number",
