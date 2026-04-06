@@ -1,7 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { calculateAmortization, AmortizationInput } from '../lib/amortization';
-import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2 } from 'lucide-react';
+import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2, Download, FileText, Printer } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface AmortizationCalculatorProps {
   key?: string;
@@ -151,6 +153,83 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
       delete next[key];
       return next;
     });
+  };
+
+  const exportCSV = () => {
+    const headers = ['Period', 'Date', 'Scheduled Payment', 'Extra Payment', 'Total Payment', 'Principal', 'Interest', 'Balance'];
+    const rows = schedule.map(row => [
+      row.period,
+      !isNaN(row.date.getTime()) ? format(row.date, 'MMM yyyy') : 'Invalid Date',
+      row.scheduledPayment.toFixed(2),
+      row.extraPayment.toFixed(2),
+      row.totalPayment.toFixed(2),
+      row.principal.toFixed(2),
+      row.interest.toFixed(2),
+      row.balance.toFixed(2)
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'amortization_report.csv';
+    link.click();
+  };
+
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    doc.text("Amortization Report", 14, 15);
+    autoTable(doc, {
+      head: [['Period', 'Date', 'Scheduled Payment', 'Extra Payment', 'Total Payment', 'Principal', 'Interest', 'Balance']],
+      body: schedule.map(row => [
+        row.period.toString(),
+        !isNaN(row.date.getTime()) ? format(row.date, 'MMM yyyy') : 'Invalid Date',
+        formatCurrency(row.scheduledPayment),
+        formatCurrency(row.extraPayment),
+        formatCurrency(row.totalPayment),
+        formatCurrency(row.principal),
+        formatCurrency(row.interest),
+        formatCurrency(row.balance)
+      ]),
+      startY: 20,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [37, 99, 235] }
+    });
+    doc.save('amortization_report.pdf');
+  };
+
+  const handlePrint = () => {
+    const printContent = document.getElementById('amortization-table-container');
+    if (!printContent) return;
+    const windowPrint = window.open('', '', 'left=0,top=0,width=800,height=900,toolbar=0,scrollbars=0,status=0');
+    if (!windowPrint) return;
+    windowPrint.document.write(`
+      <html>
+        <head>
+          <title>Print Amortization Report</title>
+          <style>
+            body { font-family: sans-serif; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+            th { background-color: #f2f2f2; }
+            th:first-child, td:first-child { text-align: left; }
+            th:nth-child(2), td:nth-child(2) { text-align: left; }
+            .bg-blue-50 { background-color: #eff6ff; }
+            .text-green-600 { color: #16a34a; }
+            .text-gray-400 { color: #9ca3af; }
+          </style>
+        </head>
+        <body>
+          <h2>Amortization Report</h2>
+          ${printContent.innerHTML}
+        </body>
+      </html>
+    `);
+    windowPrint.document.close();
+    windowPrint.focus();
+    setTimeout(() => {
+      windowPrint.print();
+      windowPrint.close();
+    }, 250);
   };
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -442,10 +521,33 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest }:
 
       {/* Amortization Schedule Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
+        <div className="px-6 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-bold text-gray-900">Amortization Report</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportCSV}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Excel (CSV)
+            </button>
+            <button
+              onClick={exportPDF}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              PDF
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              Print
+            </button>
+          </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" id="amortization-table-container">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>

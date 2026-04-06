@@ -5,6 +5,57 @@ import AmortizationCalculator from './AmortizationCalculator';
 import { AmortizationInput } from '../lib/amortization';
 import { LogOut, User, FolderOpen, Loader2, Share2, Edit2, Trash2, X, Copy, Check } from 'lucide-react';
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 interface SavedSchedule {
   id: string;
   name: string;
@@ -62,7 +113,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
         console.error("Shared project not found");
       }
     } catch (error) {
-      console.error("Error loading shared project:", error);
+      handleFirestoreError(error, OperationType.GET, `schedules/${id}`);
     }
   };
 
@@ -94,7 +145,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
       });
       setSavedSchedules(schedules);
     } catch (error) {
-      console.error("Error loading schedules:", error);
+      handleFirestoreError(error, OperationType.LIST, 'schedules');
     } finally {
       setIsLoading(false);
     }
@@ -132,8 +183,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
       }
       alert("Schedule saved successfully!");
     } catch (error) {
-      console.error("Error saving schedule:", error);
-      alert("Failed to save schedule.");
+      handleFirestoreError(error, OperationType.WRITE, 'schedules');
     } finally {
       setIsSaving(false);
     }
@@ -152,8 +202,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
       }
       setEditingProject(null);
     } catch (error) {
-      console.error("Error updating name:", error);
-      alert("Failed to update name.");
+      handleFirestoreError(error, OperationType.UPDATE, `schedules/${editingProject.id}`);
     }
   };
 
@@ -164,8 +213,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
       setSavedSchedules(prev => prev.filter(s => s.id !== deletingProject.id));
       setDeletingProject(null);
     } catch (error) {
-      console.error("Error deleting schedule:", error);
-      alert("Failed to delete schedule.");
+      handleFirestoreError(error, OperationType.DELETE, `schedules/${deletingProject.id}`);
     }
   };
 
