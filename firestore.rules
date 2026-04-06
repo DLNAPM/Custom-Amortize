@@ -75,11 +75,11 @@ service cloud.firestore {
     }
     
     // Domain Validators
-    function isValidUser() {
+    function isValidUser(userId) {
       let allowedFields = ['uid', 'email', 'displayName', 'createdAt', 'role', 'tier', 'faceAuthEnabled'];
       return hasOnlyAllowedFields(allowedFields) &&
              hasRequiredFields(['uid', 'email', 'createdAt', 'role', 'tier']) &&
-             request.resource.data.uid == request.auth.uid &&
+             request.resource.data.uid == userId &&
              isValidEmail(request.resource.data.email) &&
              request.resource.data.createdAt is timestamp &&
              (request.resource.data.role == 'admin' || request.resource.data.role == 'user') &&
@@ -109,9 +109,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isAuthenticated() && isValidUser() && 
+      allow create: if isAuthenticated() && isValidUser(userId) && 
                     ((isOwner(userId) && request.resource.data.role == 'user' && request.resource.data.tier == 'Basic') || isAdmin());
-      allow update: if isAuthenticated() && isValidUser() && 
+      allow update: if isAuthenticated() && isValidUser(userId) && 
                     request.resource.data.createdAt == resource.data.createdAt &&
                     uidNotModified() &&
                     ((isOwner(userId) && request.resource.data.role == resource.data.role && request.resource.data.tier == resource.data.tier) || isAdmin());
