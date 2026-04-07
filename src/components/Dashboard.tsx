@@ -73,6 +73,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
   const [currentScheduleRole, setCurrentScheduleRole] = useState<'owner' | 'editor' | 'viewer'>('owner');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<{ role: string, tier: string, exportCount: number, printCount: number } | null>(null);
   const [activeTab, setActiveTab] = useState<'calculator' | 'admin'>('calculator');
   
@@ -489,29 +490,38 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
                 )}
               </div>
               {!isGuest && userProfile?.tier !== 'Premium' && (
-                <button
-                  onClick={async () => {
-                    try {
-                      const res = await fetch('/api/create-checkout-session', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId: auth.currentUser?.uid })
-                      });
-                      const data = await res.json();
-                      if (data.url) {
-                        window.location.href = data.url;
-                      } else {
-                        alert('Failed to start checkout: ' + (data.error || 'Unknown error'));
+                <div className="relative flex flex-col items-end">
+                  <button
+                    onClick={async () => {
+                      setCheckoutError(null);
+                      try {
+                        const res = await fetch('/api/create-checkout-session', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ userId: auth.currentUser?.uid })
+                        });
+                        const data = await res.json();
+                        if (data.url) {
+                          window.open(data.url, '_blank');
+                        } else {
+                          setCheckoutError('Failed to start checkout: ' + (data.error || 'Unknown error'));
+                        }
+                      } catch (err) {
+                        console.error(err);
+                        setCheckoutError('Error starting checkout. Please check your configuration.');
                       }
-                    } catch (err) {
-                      console.error(err);
-                      alert('Error starting checkout');
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                >
-                  Upgrade to Premium
-                </button>
+                    }}
+                    className="inline-flex items-center gap-2 px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                  >
+                    Upgrade to Premium
+                  </button>
+                  {checkoutError && (
+                    <div className="absolute top-full mt-2 right-0 w-64 bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-xs shadow-lg z-50">
+                      {checkoutError}
+                      <button onClick={() => setCheckoutError(null)} className="ml-2 font-bold hover:text-red-900">&times;</button>
+                    </div>
+                  )}
+                </div>
               )}
               <button
                 onClick={logout}
