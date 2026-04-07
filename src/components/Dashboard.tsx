@@ -495,13 +495,17 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
                     onClick={async () => {
                       setCheckoutError(null);
                       try {
-                        const res = await fetch('/api/init-premium', {
+                        const res = await fetch('/api/get-link', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ userId: auth.currentUser?.uid })
                         });
                         
                         const text = await res.text();
+                        if (!text) {
+                          throw new Error("Empty response from server. If you are using an adblocker, please disable it for this site.");
+                        }
+                        
                         let data;
                         try {
                           data = JSON.parse(text);
