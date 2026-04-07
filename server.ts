@@ -96,8 +96,8 @@ async function startServer() {
   // Parse JSON bodies for other routes
   app.use(express.json());
 
-  app.post("/api/create-checkout-session", async (req, res) => {
-    console.log("Received request to /api/create-checkout-session");
+  app.post("/api/init-premium", async (req, res) => {
+    console.log("Received request to /api/init-premium");
     console.log("Body:", req.body);
     try {
       const { userId, priceId } = req.body;

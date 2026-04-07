@@ -495,7 +495,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
                     onClick={async () => {
                       setCheckoutError(null);
                       try {
-                        const res = await fetch('/api/create-checkout-session', {
+                        const res = await fetch('/api/init-premium', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ userId: auth.currentUser?.uid })
