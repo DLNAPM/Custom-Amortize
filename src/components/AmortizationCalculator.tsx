@@ -10,11 +10,13 @@ interface AmortizationCalculatorProps {
   key?: string;
   initialData?: Partial<AmortizationInput>;
   onSave?: (data: AmortizationInput) => void;
+  onUpdate?: (data: AmortizationInput) => void;
+  canUpdate?: boolean;
   isGuest?: boolean;
   userTier?: string;
 }
 
-export default function AmortizationCalculator({ initialData, onSave, isGuest, userTier = 'Basic' }: AmortizationCalculatorProps) {
+export default function AmortizationCalculator({ initialData, onSave, onUpdate, canUpdate, isGuest, userTier = 'Basic' }: AmortizationCalculatorProps) {
   const [loanAmount, setLoanAmount] = useState<number>(initialData?.loanAmount || 300000);
   const [downPaymentType, setDownPaymentType] = useState<'value' | 'percent'>('percent');
   const [downPaymentValue, setDownPaymentValue] = useState<number>(20);
@@ -417,15 +419,26 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest, u
           </div>
         </div>
 
-        {onSave && !isGuest && (
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={() => onSave(input)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-            >
-              <Save className="w-4 h-4" />
-              Save Schedule
-            </button>
+        {(onSave || onUpdate) && !isGuest && (
+          <div className="mt-6 flex justify-end gap-3">
+            {onUpdate && canUpdate && (
+              <button
+                onClick={() => onUpdate(input)}
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
+              >
+                <Save className="w-4 h-4" />
+                Update Schedule
+              </button>
+            )}
+            {onSave && (
+              <button
+                onClick={() => onSave(input)}
+                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+              >
+                <Copy className="w-4 h-4" />
+                Save as New
+              </button>
+            )}
           </div>
         )}
       </div>

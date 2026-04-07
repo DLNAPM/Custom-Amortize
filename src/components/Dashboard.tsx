@@ -65,8 +65,11 @@ interface SavedSchedule {
 
 export default function Dashboard({ sharedProjectId }: { sharedProjectId?: string | null }) {
   const [savedSchedules, setSavedSchedules] = useState<SavedSchedule[]>([]);
+  const [sharedSchedules, setSharedSchedules] = useState<SavedSchedule[]>([]);
   const [currentSchedule, setCurrentSchedule] = useState<Partial<AmortizationInput> | undefined>();
   const [currentScheduleName, setCurrentScheduleName] = useState<string | null>(null);
+  const [currentScheduleId, setCurrentScheduleId] = useState<string | null>(null);
+  const [currentScheduleRole, setCurrentScheduleRole] = useState<'owner' | 'editor' | 'viewer'>('owner');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [userProfile, setUserProfile] = useState<{ role: string, tier: string } | null>(null);
@@ -76,6 +79,9 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
   const [editingProject, setEditingProject] = useState<SavedSchedule | null>(null);
   const [editNameInput, setEditNameInput] = useState('');
   const [deletingProject, setDeletingProject] = useState<SavedSchedule | null>(null);
+  const [shareProject, setShareProject] = useState<SavedSchedule | null>(null);
+  const [shareEmailInput, setShareEmailInput] = useState('');
+  const [shareRoleInput, setShareRoleInput] = useState<'viewer' | 'editor'>('viewer');
   const [shareLink, setShareLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   
@@ -137,6 +143,15 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
           startDate: data.startDate ? new Date(data.startDate) : new Date(),
         });
         setCurrentScheduleName(data.name);
+        setCurrentScheduleId(id);
+        
+        if (auth.currentUser && data.userId === auth.currentUser.uid) {
+          setCurrentScheduleRole('owner');
+        } else if (auth.currentUser && auth.currentUser.email && data.sharedRoles && data.sharedRoles[auth.currentUser.email] === 'editor') {
+          setCurrentScheduleRole('editor');
+        } else {
+          setCurrentScheduleRole('viewer');
+        }
       } else {
         console.error("Shared project not found");
       }
@@ -148,6 +163,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
   const loadSchedules = async () => {
     if (!auth.currentUser) return;
     try {
+      // Load my schedules
       const q = query(
         collection(db, 'schedules'),
         where('userId', '==', auth.currentUser.uid)
@@ -173,6 +189,35 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
         });
       });
       setSavedSchedules(schedules);
+
+      // Load shared schedules
+      if (auth.currentUser.email) {
+        const sharedQ = query(
+          collection(db, 'schedules'),
+          where('sharedWith', 'array-contains', auth.currentUser.email)
+        );
+        const sharedSnapshot = await getDocs(sharedQ);
+        const shared: SavedSchedule[] = [];
+        sharedSnapshot.forEach((doc) => {
+          const data = doc.data();
+          shared.push({
+            id: doc.id,
+            name: data.name,
+            data: {
+              loanAmount: data.loanAmount,
+              downPayment: data.downPayment,
+              annualInterestRate: data.annualInterestRate,
+              loanTermYears: data.loanTermYears,
+              paymentsPerYear: data.paymentsPerYear,
+              monthlyExtraPayment: data.monthlyExtraPayment || 0,
+              extraPayments: data.extraPayments || {},
+              balloonPaymentYears: data.balloonPaymentYears,
+              startDate: data.startDate ? new Date(data.startDate) : new Date(),
+            }
+          });
+        });
+        setSharedSchedules(shared);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'schedules');
     } finally {
@@ -190,6 +235,13 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
     setSaveNameInput(defaultName);
     setSaveInputData(input);
     setSaveModalOpen(true);
+  };
+
+  const handleUpdateClick = async (input: AmortizationInput) => {
+    if (!auth.currentUser || isGuest || !currentScheduleId || !currentScheduleName) {
+      return;
+    }
+    await performSave(currentScheduleName, input, currentScheduleId);
   };
 
   const handleSaveSubmit = async () => {
@@ -219,7 +271,6 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
     setIsSaving(true);
     try {
       const scheduleData: any = {
-        userId: auth.currentUser.uid,
         name,
         loanAmount: input.loanAmount,
         downPayment: input.downPayment,
@@ -241,6 +292,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
       } else {
         await addDoc(collection(db, 'schedules'), {
           ...scheduleData,
+          userId: auth.currentUser.uid,
           createdAt: serverTimestamp()
         });
       }
@@ -285,11 +337,53 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
     }
   };
 
-  const openShareModal = (id: string, e: React.MouseEvent) => {
+  const openShareModal = (schedule: SavedSchedule, e: React.MouseEvent) => {
     e.stopPropagation();
-    const url = `${window.location.origin}?project=${id}`;
+    setShareProject(schedule);
+    setShareEmailInput('');
+    setShareRoleInput('viewer');
+    const url = `${window.location.origin}?project=${schedule.id}`;
     setShareLink(url);
     setCopied(false);
+  };
+
+  const handleShareSubmit = async () => {
+    if (!shareProject || !shareEmailInput.trim()) return;
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(shareEmailInput.trim())) {
+      alert("Please enter a valid email address.");
+      return;
+    }
+
+    try {
+      const docRef = doc(db, 'schedules', shareProject.id);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const currentSharedWith = data.sharedWith || [];
+        const currentSharedRoles = data.sharedRoles || {};
+        
+        const newEmail = shareEmailInput.trim().toLowerCase();
+        
+        if (!currentSharedWith.includes(newEmail)) {
+          currentSharedWith.push(newEmail);
+        }
+        currentSharedRoles[newEmail] = shareRoleInput;
+
+        await updateDoc(docRef, {
+          sharedWith: currentSharedWith,
+          sharedRoles: currentSharedRoles,
+          updatedAt: serverTimestamp()
+        });
+        
+        setShareEmailInput('');
+        alert(`Successfully shared with ${newEmail}`);
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `schedules/${shareProject.id}`);
+    }
   };
 
   const copyShareLink = () => {
@@ -391,6 +485,8 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
                   onClick={() => {
                     setCurrentSchedule(schedule.data);
                     setCurrentScheduleName(schedule.name);
+                    setCurrentScheduleId(schedule.id);
+                    setCurrentScheduleRole('owner');
                     if (sharedProjectId) {
                       window.history.replaceState({}, document.title, window.location.pathname);
                     }
@@ -406,7 +502,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
                   
                   <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={(e) => openShareModal(schedule.id, e)}
+                      onClick={(e) => openShareModal(schedule, e)}
                       className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
                       title="Share"
                     >
@@ -440,6 +536,53 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
           </div>
         )}
 
+        {!isGuest && sharedSchedules.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+              <Share2 className="w-5 h-5" />
+              Shared with Me
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {sharedSchedules.map((schedule) => (
+                <div
+                  key={schedule.id}
+                  onClick={async () => {
+                    setCurrentSchedule(schedule.data);
+                    setCurrentScheduleName(schedule.name);
+                    setCurrentScheduleId(schedule.id);
+                    // Need to fetch the role from the document
+                    try {
+                      const docRef = doc(db, 'schedules', schedule.id);
+                      const docSnap = await getDoc(docRef);
+                      if (docSnap.exists() && auth.currentUser && auth.currentUser.email) {
+                        const data = docSnap.data();
+                        if (data.sharedRoles && data.sharedRoles[auth.currentUser.email] === 'editor') {
+                          setCurrentScheduleRole('editor');
+                        } else {
+                          setCurrentScheduleRole('viewer');
+                        }
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    }
+                    if (sharedProjectId) {
+                      window.history.replaceState({}, document.title, window.location.pathname);
+                    }
+                  }}
+                  className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hover:border-indigo-500 hover:ring-1 hover:ring-indigo-500 transition-all text-left cursor-pointer group relative"
+                >
+                  <div>
+                    <h3 className="font-medium text-gray-900 truncate">{schedule.name}</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      ${schedule.data.loanAmount?.toLocaleString()} @ {schedule.data.annualInterestRate}%
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
             {isLoading ? (
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
@@ -449,6 +592,8 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
                 key={currentSchedule ? 'loaded' : 'new'} 
                 initialData={currentSchedule} 
                 onSave={handleSaveClick}
+                onUpdate={currentScheduleId ? handleUpdateClick : undefined}
+                canUpdate={currentScheduleRole === 'owner' || currentScheduleRole === 'editor'}
                 isGuest={isGuest}
                 userTier={userProfile?.tier || 'Basic'}
               />
@@ -604,16 +749,54 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
       )}
 
       {/* Share Modal */}
-      {shareLink && (
+      {shareProject && shareLink && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-900">Share Project</h3>
-              <button onClick={() => setShareLink(null)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => { setShareProject(null); setShareLink(null); }} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-gray-600 text-sm mb-4">
+            
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Share with User (Email)</label>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  placeholder="user@example.com"
+                  value={shareEmailInput}
+                  onChange={(e) => setShareEmailInput(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+                <select
+                  value={shareRoleInput}
+                  onChange={(e) => setShareRoleInput(e.target.value as 'viewer' | 'editor')}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="editor">Editor</option>
+                </select>
+                <button
+                  onClick={handleShareSubmit}
+                  disabled={!shareEmailInput.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  Share
+                </button>
+              </div>
+            </div>
+
+            <div className="relative py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or share via link</span>
+              </div>
+            </div>
+
+            <p className="text-gray-600 text-sm mb-2 mt-2">
               Anyone with this link can view this amortization schedule.
             </p>
             <div className="flex gap-2">
@@ -625,7 +808,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
               />
               <button
                 onClick={copyShareLink}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center gap-2"
               >
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copied ? 'Copied!' : 'Copy'}

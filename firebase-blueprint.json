@@ -88,6 +88,15 @@
           "type": "string",
           "description": "Start Date of the first payment"
         },
+        "sharedWith": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Array of emails this schedule is shared with"
+        },
+        "sharedRoles": {
+          "type": "object",
+          "description": "Map of email to role ('viewer' or 'editor')"
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time",

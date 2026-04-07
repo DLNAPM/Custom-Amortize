@@ -30,6 +30,8 @@ service cloud.firestore {
     //   - extraPayments: map (optional)
     //   - balloonPaymentYears: number (optional)
     //   - startDate: string (required)
+    //   - sharedWith: list (optional)
+    //   - sharedRoles: map (optional)
     //   - createdAt: timestamp (required, immutable)
     //   - updatedAt: timestamp (required)
     //
@@ -89,7 +91,7 @@ service cloud.firestore {
     }
     
     function isValidSchedule() {
-      let allowedFields = ['userId', 'name', 'loanAmount', 'downPayment', 'annualInterestRate', 'loanTermYears', 'paymentsPerYear', 'monthlyExtraPayment', 'extraPayments', 'balloonPaymentYears', 'startDate', 'createdAt', 'updatedAt'];
+      let allowedFields = ['userId', 'name', 'loanAmount', 'downPayment', 'annualInterestRate', 'loanTermYears', 'paymentsPerYear', 'monthlyExtraPayment', 'extraPayments', 'balloonPaymentYears', 'startDate', 'sharedWith', 'sharedRoles', 'createdAt', 'updatedAt'];
       return hasOnlyAllowedFields(allowedFields) &&
              hasRequiredFields(['userId', 'name', 'loanAmount', 'downPayment', 'annualInterestRate', 'loanTermYears', 'paymentsPerYear', 'monthlyExtraPayment', 'startDate', 'createdAt', 'updatedAt']) &&
              request.resource.data.userId == request.auth.uid &&
@@ -104,7 +106,23 @@ service cloud.firestore {
              request.resource.data.createdAt is timestamp &&
              request.resource.data.updatedAt is timestamp &&
              (!('extraPayments' in request.resource.data) || request.resource.data.extraPayments is map) &&
-             (!('balloonPaymentYears' in request.resource.data) || (request.resource.data.balloonPaymentYears is number && request.resource.data.balloonPaymentYears >= 0));
+             (!('balloonPaymentYears' in request.resource.data) || (request.resource.data.balloonPaymentYears is number && request.resource.data.balloonPaymentYears >= 0)) &&
+             (!('sharedWith' in request.resource.data) || request.resource.data.sharedWith is list) &&
+             (!('sharedRoles' in request.resource.data) || request.resource.data.sharedRoles is map);
+    }
+
+    function isSharedEditor() {
+      return isAuthenticated() && 
+             'sharedWith' in resource.data && 
+             request.auth.token.email in resource.data.sharedWith &&
+             'sharedRoles' in resource.data &&
+             resource.data.sharedRoles[request.auth.token.email] == 'editor';
+    }
+
+    function isSharedViewer() {
+      return isAuthenticated() && 
+             'sharedWith' in resource.data && 
+             request.auth.token.email in resource.data.sharedWith;
     }
 
     match /users/{userId} {
@@ -119,11 +137,17 @@ service cloud.firestore {
     }
 
     match /schedules/{scheduleId} {
-      allow read: if isAuthenticated();
+      allow read: if isDocOwner() || isSharedViewer();
       allow create: if isAuthenticated() && isValidSchedule();
-      allow update: if isDocOwner() && isValidSchedule() &&
-                    request.resource.data.createdAt == resource.data.createdAt &&
-                    request.resource.data.userId == resource.data.userId;
+      allow update: if (isDocOwner() || isSharedEditor()) && 
+                    // If editor, they can't change owner or sharing settings
+                    (isDocOwner() ? isValidSchedule() : (
+                      hasOnlyAllowedFields(['userId', 'name', 'loanAmount', 'downPayment', 'annualInterestRate', 'loanTermYears', 'paymentsPerYear', 'monthlyExtraPayment', 'extraPayments', 'balloonPaymentYears', 'startDate', 'sharedWith', 'sharedRoles', 'createdAt', 'updatedAt']) &&
+                      request.resource.data.userId == resource.data.userId &&
+                      request.resource.data.sharedWith == resource.data.sharedWith &&
+                      request.resource.data.sharedRoles == resource.data.sharedRoles &&
+                      request.resource.data.createdAt == resource.data.createdAt
+                    ));
       allow delete: if isDocOwner();
     }
   }
