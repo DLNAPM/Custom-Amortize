@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { calculateAmortization, AmortizationInput } from '../lib/amortization';
-import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2, Download, FileText, Printer, Sparkles, Wand2, Loader2 } from 'lucide-react';
+import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2, Download, FileText, Printer, Sparkles, Wand2, Loader2, Copy } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { parseSmartPayments } from '../services/geminiService';
