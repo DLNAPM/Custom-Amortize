@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { calculateAmortization, AmortizationInput } from '../lib/amortization';
-import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2, Download, FileText, Printer, Sparkles, Wand2, Loader2, Copy, RefreshCw } from 'lucide-react';
+import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2, Download, FileText, Printer, Sparkles, Wand2, Loader2, Copy, RefreshCw, Search } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { parseSmartPayments } from '../services/geminiService';
+import { parseSmartPayments, searchInterestRates } from '../services/geminiService';
 
 interface AmortizationCalculatorProps {
   key?: string;
@@ -69,6 +69,11 @@ export default function AmortizationCalculator({
 
   const [smartPrompt, setSmartPrompt] = useState("");
   const [isGeneratingSmart, setIsGeneratingSmart] = useState(false);
+
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResult, setSearchResult] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
 
   const [extraPaymentsHistory, setExtraPaymentsHistory] = useState<Record<string, any>[]>([]);
 
@@ -170,6 +175,21 @@ export default function AmortizationCalculator({
         // Reset after adding
         setExtraPaymentEndPeriod('');
       }
+    }
+  };
+
+  const handleSearchRates = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearching(true);
+    setSearchResult('');
+    try {
+      const result = await searchInterestRates(searchQuery);
+      setSearchResult(result);
+    } catch (error) {
+      console.error("Error searching interest rates:", error);
+      setSearchResult("Sorry, there was an error searching for interest rates. Please try again.");
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -367,7 +387,17 @@ export default function AmortizationCalculator({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Annual Interest Rate</label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">Annual Interest Rate</label>
+              <button
+                onClick={() => setIsSearchModalOpen(true)}
+                className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md transition-colors"
+                title="Ask AI for current interest rates"
+              >
+                <Search className="w-3 h-3" />
+                Search Rates
+              </button>
+            </div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Percent className="h-4 w-4 text-gray-400" />
@@ -936,6 +966,63 @@ export default function AmortizationCalculator({
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search Rates Modal */}
+      {isSearchModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Search className="w-5 h-5 text-blue-600" />
+                <h3 className="text-xl font-bold text-gray-900">Search Interest Rates</h3>
+              </div>
+              <button onClick={() => setIsSearchModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+              <p className="text-sm text-gray-600">
+                Ask our AI assistant to search the web for current interest rates based on your specific situation.
+              </p>
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="e.g., What is the average Car Loan interest rate for customer who has 760+ credit score and low DTI?"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm resize-none"
+                  rows={3}
+                />
+                <button
+                  onClick={handleSearchRates}
+                  disabled={isSearching || !searchQuery.trim()}
+                  className="self-end px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 transition-colors flex items-center gap-2"
+                >
+                  {isSearching ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4" />
+                      Search
+                    </>
+                  )}
+                </button>
+              </div>
+              
+              {searchResult && (
+                <div className="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <h4 className="text-sm font-bold text-gray-900 mb-2">Result:</h4>
+                  <div className="text-sm text-gray-700 whitespace-pre-wrap">
+                    {searchResult}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

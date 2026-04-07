@@ -34,3 +34,18 @@ export async function parseSmartPayments(
     return [];
   }
 }
+
+export async function searchInterestRates(prompt: string) {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: prompt,
+    tools: [
+      { googleSearch: {} }
+    ],
+    config: {
+      systemInstruction: "You are a helpful financial assistant. Answer the user's question about interest rates using Google Search. Provide a concise, helpful answer."
+    }
+  });
+  return response.text;
+}
