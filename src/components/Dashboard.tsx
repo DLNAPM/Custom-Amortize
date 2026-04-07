@@ -500,15 +500,24 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ userId: auth.currentUser?.uid })
                         });
-                        const data = await res.json();
+                        
+                        const text = await res.text();
+                        let data;
+                        try {
+                          data = JSON.parse(text);
+                        } catch (e) {
+                          console.error("Failed to parse response as JSON:", text);
+                          throw new Error(`Server error: ${res.status} ${res.statusText}`);
+                        }
+
                         if (data.url) {
                           window.open(data.url, '_blank');
                         } else {
                           setCheckoutError('Failed to start checkout: ' + (data.error || 'Unknown error'));
                         }
-                      } catch (err) {
+                      } catch (err: any) {
                         console.error(err);
-                        setCheckoutError('Error starting checkout. Please check your configuration.');
+                        setCheckoutError(err.message || 'Error starting checkout. Please check your configuration.');
                       }
                     }}
                     className="inline-flex items-center gap-2 px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
