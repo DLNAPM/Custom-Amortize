@@ -34,7 +34,7 @@ export default function RatesBanner() {
           placeholder="Zip Code" 
           value={zipCode}
           onChange={(e) => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
-          className="w-24 px-2 py-1 text-black rounded text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-24 px-2 py-1 text-white bg-indigo-800 placeholder-indigo-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
         />
         <button 
           type="submit" 
