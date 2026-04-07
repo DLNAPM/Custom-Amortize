@@ -97,15 +97,20 @@ async function startServer() {
   app.use(express.json());
 
   app.post("/api/create-checkout-session", async (req, res) => {
+    console.log("Received request to /api/create-checkout-session");
+    console.log("Body:", req.body);
     try {
       const { userId, priceId } = req.body;
       
       if (!userId) {
+        console.log("Missing userId");
         res.status(400).json({ error: "User ID is required" });
         return;
       }
 
+      console.log("Getting Stripe client...");
       const stripe = getStripe();
+      console.log("Creating checkout session...");
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ["card"],
         line_items: [
@@ -120,6 +125,7 @@ async function startServer() {
         client_reference_id: userId,
       });
 
+      console.log("Session created:", session.url);
       res.json({ url: session.url });
     } catch (error: any) {
       console.error("Error creating checkout session:", error);
