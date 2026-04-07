@@ -43,6 +43,7 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest, u
   const [quickAddModal, setQuickAddModal] = useState<{ startPeriod: number } | null>(null);
   const [quickAddCount, setQuickAddCount] = useState<number>(1);
   const [quickAddAmount, setQuickAddAmount] = useState<number>(100);
+  const [showAllExtraPaymentsModal, setShowAllExtraPaymentsModal] = useState(false);
 
   const [addExtraType, setAddExtraType] = useState<'period' | 'date'>('period');
   const [extraPaymentDate, setExtraPaymentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
@@ -615,8 +616,8 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest, u
         {Object.keys(extraPayments).length > 0 && (
           <div className="mt-6">
             <h3 className="text-sm font-medium text-gray-700 mb-3">Current Extra Payments</h3>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(extraPayments).map(([key, val]) => {
+            <div className="flex flex-wrap gap-2 items-center">
+              {Object.entries(extraPayments).slice(0, 2).map(([key, val]) => {
                 const isDateBased = typeof val === 'object' && val !== null && 'date' in val;
                 const amount = isDateBased ? (val as any).amount : val;
                 const label = isDateBased ? `Date: ${format(new Date((val as any).date), 'MMM d, yyyy')}` : `Period ${key}`;
@@ -634,6 +635,14 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest, u
                   </div>
                 );
               })}
+              {Object.keys(extraPayments).length > 2 && (
+                <button
+                  onClick={() => setShowAllExtraPaymentsModal(true)}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors ml-2 underline"
+                >
+                  View All {Object.keys(extraPayments).length} Extra Payments
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -798,6 +807,58 @@ export default function AmortizationCalculator({ initialData, onSave, isGuest, u
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
               >
                 Add Payments
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* All Extra Payments Modal */}
+      {showAllExtraPaymentsModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full flex flex-col max-h-[90vh]">
+            <div className="flex justify-between items-center p-6 border-b border-gray-100">
+              <h3 className="text-xl font-bold text-gray-900">All Extra Payments</h3>
+              <button onClick={() => setShowAllExtraPaymentsModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto flex-1">
+              {Object.keys(extraPayments).length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No extra payments added yet.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {Object.entries(extraPayments).map(([key, val]) => {
+                    const isDateBased = typeof val === 'object' && val !== null && 'date' in val;
+                    const amount = isDateBased ? (val as any).amount : val;
+                    const label = isDateBased ? `Date: ${format(new Date((val as any).date), 'MMM d, yyyy')}` : `Period ${key}`;
+                    
+                    return (
+                      <div key={key} className="flex items-center justify-between bg-blue-50 text-blue-700 px-4 py-3 rounded-xl border border-blue-100">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-blue-500 mb-1">{label}</span>
+                          <span className="font-bold text-lg">{formatCurrency(amount as number)}</span>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveExtraPayment(key)}
+                          className="p-2 text-blue-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors focus:outline-none"
+                          title="Remove payment"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="p-6 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end">
+              <button 
+                onClick={() => setShowAllExtraPaymentsModal(false)} 
+                className="px-6 py-2.5 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>
