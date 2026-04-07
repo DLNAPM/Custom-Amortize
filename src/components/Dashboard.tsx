@@ -492,36 +492,13 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
               {!isGuest && userProfile?.tier !== 'Premium' && (
                 <div className="relative flex flex-col items-end">
                   <button
-                    onClick={async () => {
+                    onClick={() => {
                       setCheckoutError(null);
-                      try {
-                        const res = await fetch('/api/user/settings', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ accountId: auth.currentUser?.uid })
-                        });
-                        
-                        const text = await res.text();
-                        if (!text) {
-                          throw new Error("Empty response from server. If you are using an adblocker, please disable it for this site.");
-                        }
-                        
-                        let data;
-                        try {
-                          data = JSON.parse(text);
-                        } catch (e) {
-                          console.error("Failed to parse response as JSON:", text);
-                          throw new Error(`Server error: ${res.status} ${res.statusText}`);
-                        }
-
-                        if (data.url) {
-                          window.open(data.url, '_blank');
-                        } else {
-                          setCheckoutError('Failed to start checkout: ' + (data.error || 'Unknown error'));
-                        }
-                      } catch (err: any) {
-                        console.error(err);
-                        setCheckoutError(err.message || 'Error starting checkout. Please check your configuration.');
+                      const userId = auth.currentUser?.uid;
+                      if (userId) {
+                        window.open(`https://buy.stripe.com/test_fZucN77cNgz13W7dDt3ZK01?client_reference_id=${userId}`, '_blank');
+                      } else {
+                        setCheckoutError("You must be logged in to upgrade.");
                       }
                     }}
                     className="inline-flex items-center gap-2 px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
