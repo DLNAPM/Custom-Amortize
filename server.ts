@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   // Initialize Stripe lazily to avoid crashing on startup if key is missing
   let stripeClient: Stripe | null = null;
@@ -96,15 +96,15 @@ async function startServer() {
   // Parse JSON bodies for other routes
   app.use(express.json());
 
-  app.post("/api/get-link", async (req, res) => {
-    console.log("Received request to /api/get-link");
+  app.post("/api/user/settings", async (req, res) => {
+    console.log("Received request to /api/user/settings");
     console.log("Body:", req.body);
     try {
-      const { userId, priceId } = req.body;
+      const { accountId, priceId } = req.body;
       
-      if (!userId) {
-        console.log("Missing userId");
-        res.status(400).json({ error: "User ID is required" });
+      if (!accountId) {
+        console.log("Missing accountId");
+        res.status(400).json({ error: "Account ID is required" });
         return;
       }
 
@@ -122,7 +122,7 @@ async function startServer() {
         mode: "subscription",
         success_url: `${req.protocol}://${req.get("host")}/?success=true`,
         cancel_url: `${req.protocol}://${req.get("host")}/?canceled=true`,
-        client_reference_id: userId,
+        client_reference_id: accountId,
       });
 
       console.log("Session created:", session.url);
