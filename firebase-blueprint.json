@@ -35,6 +35,14 @@
         "faceAuthEnabled": {
           "type": "boolean",
           "description": "Whether facial recognition is enabled (Premium Feature)"
+        },
+        "exportCount": {
+          "type": "number",
+          "description": "Number of times the user has exported a report"
+        },
+        "printCount": {
+          "type": "number",
+          "description": "Number of times the user has printed a report"
         }
       },
       "required": ["uid", "email", "createdAt", "role", "tier"]

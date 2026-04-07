@@ -14,9 +14,24 @@ interface AmortizationCalculatorProps {
   canUpdate?: boolean;
   isGuest?: boolean;
   userTier?: string;
+  exportCount?: number;
+  printCount?: number;
+  onExport?: () => void;
+  onPrint?: () => void;
 }
 
-export default function AmortizationCalculator({ initialData, onSave, onUpdate, canUpdate, isGuest, userTier = 'Basic' }: AmortizationCalculatorProps) {
+export default function AmortizationCalculator({ 
+  initialData, 
+  onSave, 
+  onUpdate, 
+  canUpdate, 
+  isGuest, 
+  userTier = 'Basic',
+  exportCount = 0,
+  printCount = 0,
+  onExport,
+  onPrint
+}: AmortizationCalculatorProps) {
   const [loanAmount, setLoanAmount] = useState<number>(initialData?.loanAmount || 300000);
   const [downPaymentType, setDownPaymentType] = useState<'value' | 'percent'>('percent');
   const [downPaymentValue, setDownPaymentValue] = useState<number>(20);
@@ -200,7 +215,26 @@ export default function AmortizationCalculator({ initialData, onSave, onUpdate, 
     });
   };
 
+  const checkExportLimit = () => {
+    if (userTier === 'Premium') return true;
+    if (exportCount >= 3) {
+      alert('You have reached the limit of 3 exports for the Basic tier. Please upgrade to Premium to export more.');
+      return false;
+    }
+    return true;
+  };
+
+  const checkPrintLimit = () => {
+    if (userTier === 'Premium') return true;
+    if (printCount >= 3) {
+      alert('You have reached the limit of 3 prints for the Basic tier. Please upgrade to Premium to print more.');
+      return false;
+    }
+    return true;
+  };
+
   const exportCSV = () => {
+    if (!checkExportLimit()) return;
     const headers = ['Period', 'Date', 'Scheduled Payment', 'Extra Payment', 'Total Payment', 'Principal', 'Interest', 'Balance'];
     const rows = schedule.map(row => [
       row.period,
@@ -218,9 +252,11 @@ export default function AmortizationCalculator({ initialData, onSave, onUpdate, 
     link.href = URL.createObjectURL(blob);
     link.download = 'amortization_report.csv';
     link.click();
+    if (onExport) onExport();
   };
 
   const exportPDF = () => {
+    if (!checkExportLimit()) return;
     const doc = new jsPDF();
     doc.text("Amortization Report", 14, 15);
     autoTable(doc, {
@@ -240,9 +276,11 @@ export default function AmortizationCalculator({ initialData, onSave, onUpdate, 
       headStyles: { fillColor: [37, 99, 235] }
     });
     doc.save('amortization_report.pdf');
+    if (onExport) onExport();
   };
 
   const handlePrint = () => {
+    if (!checkPrintLimit()) return;
     const printContent = document.getElementById('amortization-table-container');
     if (!printContent) return;
     const windowPrint = window.open('', '', 'left=0,top=0,width=800,height=900,toolbar=0,scrollbars=0,status=0');
@@ -274,6 +312,7 @@ export default function AmortizationCalculator({ initialData, onSave, onUpdate, 
     setTimeout(() => {
       windowPrint.print();
       windowPrint.close();
+      if (onPrint) onPrint();
     }, 250);
   };
 

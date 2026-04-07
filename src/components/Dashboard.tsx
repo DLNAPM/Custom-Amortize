@@ -72,7 +72,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
   const [currentScheduleRole, setCurrentScheduleRole] = useState<'owner' | 'editor' | 'viewer'>('owner');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [userProfile, setUserProfile] = useState<{ role: string, tier: string } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ role: string, tier: string, exportCount: number, printCount: number } | null>(null);
   const [activeTab, setActiveTab] = useState<'calculator' | 'admin'>('calculator');
   
   // Modals state
@@ -117,7 +117,9 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
       if (docSnap.exists()) {
         setUserProfile({
           role: docSnap.data().role || 'user',
-          tier: docSnap.data().tier || 'Basic'
+          tier: docSnap.data().tier || 'Basic',
+          exportCount: docSnap.data().exportCount || 0,
+          printCount: docSnap.data().printCount || 0
         });
       }
     } catch (error) {
@@ -244,6 +246,32 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
     await performSave(currentScheduleName, input, currentScheduleId);
   };
 
+  const handleExport = async () => {
+    if (!auth.currentUser || !userProfile) return;
+    try {
+      const docRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(docRef, {
+        exportCount: (userProfile.exportCount || 0) + 1
+      });
+      setUserProfile({ ...userProfile, exportCount: (userProfile.exportCount || 0) + 1 });
+    } catch (error) {
+      console.error("Error updating export count:", error);
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!auth.currentUser || !userProfile) return;
+    try {
+      const docRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(docRef, {
+        printCount: (userProfile.printCount || 0) + 1
+      });
+      setUserProfile({ ...userProfile, printCount: (userProfile.printCount || 0) + 1 });
+    } catch (error) {
+      console.error("Error updating print count:", error);
+    }
+  };
+
   const handleSaveSubmit = async () => {
     if (!saveNameInput.trim() || !saveInputData) return;
     
@@ -339,6 +367,10 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
 
   const openShareModal = (schedule: SavedSchedule, e: React.MouseEvent) => {
     e.stopPropagation();
+    if (userProfile?.tier !== 'Premium') {
+      alert("Sharing Projects is a Premium feature. Please upgrade your account to use it.");
+      return;
+    }
     setShareProject(schedule);
     setShareEmailInput('');
     setShareRoleInput('viewer');
@@ -596,6 +628,10 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
                 canUpdate={currentScheduleRole === 'owner' || currentScheduleRole === 'editor'}
                 isGuest={isGuest}
                 userTier={userProfile?.tier || 'Basic'}
+                exportCount={userProfile?.exportCount || 0}
+                printCount={userProfile?.printCount || 0}
+                onExport={handleExport}
+                onPrint={handlePrint}
               />
             )}
           </>
