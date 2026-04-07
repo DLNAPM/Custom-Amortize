@@ -49,3 +49,16 @@ export async function searchInterestRates(prompt: string) {
   });
   return response.text;
 }
+
+export async function fetchRatesForZip(zipCode: string) {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `Find the current average home mortgage and auto loan interest rates for zip code ${zipCode}.`,
+    tools: [{ googleSearch: {} }],
+    config: {
+      systemInstruction: "You are a financial data assistant. Return ONLY a short, single-line string formatted exactly like this: '📍 Zip [ZIP] | 🏠 30-Year Home: [Rate]% | 🚗 New Auto: [Rate]% | 🚗 Used Auto: [Rate]%'. Do not include any other text or markdown."
+    }
+  });
+  return response.text;
+}

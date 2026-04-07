@@ -3,6 +3,7 @@ import { auth, db, logout } from '../lib/firebase';
 import { collection, addDoc, getDocs, query, where, serverTimestamp, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import AmortizationCalculator from './AmortizationCalculator';
 import AdminDashboard from './AdminDashboard';
+import RatesBanner from './RatesBanner';
 import { AmortizationInput } from '../lib/amortization';
 import { LogOut, User, FolderOpen, Loader2, Share2, Edit2, Trash2, X, Copy, Check } from 'lucide-react';
 
@@ -480,6 +481,8 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
           </div>
         </div>
       </nav>
+
+      <RatesBanner />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'admin' ? (
