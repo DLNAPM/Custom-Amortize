@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { calculateAmortization, AmortizationInput } from '../lib/amortization';
-import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2, Download, FileText, Printer, Sparkles, Wand2, Loader2, Copy } from 'lucide-react';
+import { Calculator, Save, DollarSign, Calendar, Percent, Plus, Trash2, X, Undo2, Download, FileText, Printer, Sparkles, Wand2, Loader2, Copy, RefreshCw } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { parseSmartPayments } from '../services/geminiService';
@@ -11,6 +11,7 @@ interface AmortizationCalculatorProps {
   initialData?: Partial<AmortizationInput>;
   onSave?: (data: AmortizationInput) => void;
   onUpdate?: (data: AmortizationInput) => void;
+  onReset?: () => void;
   canUpdate?: boolean;
   isGuest?: boolean;
   userTier?: string;
@@ -24,6 +25,7 @@ export default function AmortizationCalculator({
   initialData, 
   onSave, 
   onUpdate, 
+  onReset,
   canUpdate, 
   isGuest, 
   userTier = 'Basic',
@@ -458,28 +460,50 @@ export default function AmortizationCalculator({
           </div>
         </div>
 
-        {(onSave || onUpdate) && !isGuest && (
-          <div className="mt-6 flex justify-end gap-3">
-            {onUpdate && canUpdate && (
-              <button
-                onClick={() => onUpdate(input)}
-                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
-              >
-                <Save className="w-4 h-4" />
-                Update Schedule
-              </button>
-            )}
-            {onSave && (
-              <button
-                onClick={() => onSave(input)}
-                className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
-              >
-                <Copy className="w-4 h-4" />
-                Save as New
-              </button>
-            )}
-          </div>
-        )}
+        <div className="mt-6 flex justify-between items-center border-t border-gray-100 pt-6">
+          <button
+            onClick={() => {
+              setLoanAmount(300000);
+              setDownPaymentType('percent');
+              setDownPaymentValue(20);
+              setAnnualInterestRate(5.5);
+              setLoanTermYears(30);
+              setPaymentsPerYear(12);
+              setMonthlyExtraPayment(0);
+              setExtraPayments({});
+              setBalloonPaymentYears('');
+              setStartDate(new Date());
+              if (onReset) onReset();
+            }}
+            className="flex items-center gap-2 text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors font-medium text-sm"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Restart / New
+          </button>
+
+          {(onSave || onUpdate) && !isGuest && (
+            <div className="flex gap-3">
+              {onUpdate && canUpdate && (
+                <button
+                  onClick={() => onUpdate(input)}
+                  className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium text-sm"
+                >
+                  <Save className="w-4 h-4" />
+                  Update Schedule
+                </button>
+              )}
+              {onSave && (
+                <button
+                  onClick={() => onSave(input)}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                >
+                  <Copy className="w-4 h-4" />
+                  Save as New
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Summary Section */}

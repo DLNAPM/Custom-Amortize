@@ -239,6 +239,16 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
     setSaveModalOpen(true);
   };
 
+  const handleReset = () => {
+    setCurrentSchedule(undefined);
+    setCurrentScheduleName(null);
+    setCurrentScheduleId(null);
+    setCurrentScheduleRole('owner');
+    if (sharedProjectId) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  };
+
   const handleUpdateClick = async (input: AmortizationInput) => {
     if (!auth.currentUser || isGuest || !currentScheduleId || !currentScheduleName) {
       return;
@@ -625,6 +635,7 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
                 initialData={currentSchedule} 
                 onSave={handleSaveClick}
                 onUpdate={currentScheduleId ? handleUpdateClick : undefined}
+                onReset={handleReset}
                 canUpdate={currentScheduleRole === 'owner' || currentScheduleRole === 'editor'}
                 isGuest={isGuest}
                 userTier={userProfile?.tier || 'Basic'}
