@@ -97,6 +97,19 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
   const isGuest = auth.currentUser?.isAnonymous;
 
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('success')) {
+      alert("Payment successful! You are now a Premium user.");
+      // Clear the URL params
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    if (urlParams.get('canceled')) {
+      alert("Payment was canceled.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
     const init = async () => {
       setIsLoading(true);
       if (sharedProjectId) {
@@ -469,7 +482,37 @@ export default function Dashboard({ sharedProjectId }: { sharedProjectId?: strin
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <User className="w-4 h-4" />
                 {isGuest ? 'Guest User' : auth.currentUser?.email}
+                {!isGuest && userProfile && (
+                  <span className={`ml-2 px-2 py-0.5 text-xs font-bold rounded-full ${userProfile.tier === 'Premium' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
+                    {userProfile.tier}
+                  </span>
+                )}
               </div>
+              {!isGuest && userProfile?.tier !== 'Premium' && (
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/api/create-checkout-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: auth.currentUser?.uid })
+                      });
+                      const data = await res.json();
+                      if (data.url) {
+                        window.location.href = data.url;
+                      } else {
+                        alert('Failed to start checkout: ' + (data.error || 'Unknown error'));
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      alert('Error starting checkout');
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-3 py-2 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                >
+                  Upgrade to Premium
+                </button>
+              )}
               <button
                 onClick={logout}
                 className="inline-flex items-center gap-2 px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
