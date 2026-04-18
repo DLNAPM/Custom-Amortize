@@ -6,6 +6,7 @@ export default function RatesBanner() {
   const [zipCode, setZipCode] = useState('');
   const [ratesText, setRatesText] = useState('Enter your Zip Code to see current local Home & Auto Interest Rates');
   const [isLoading, setIsLoading] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const handleFetchRates = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -46,8 +47,15 @@ export default function RatesBanner() {
         </button>
       </form>
       
-      <div className="marquee-container flex-1 ml-2">
-        <div className="animate-marquee font-medium tracking-wide text-indigo-100">
+      <div 
+        className="marquee-container flex-1 ml-2 cursor-pointer hover:bg-indigo-800/50 rounded transition-colors"
+        onClick={() => setIsPaused(!isPaused)}
+        title={isPaused ? "Click to resume scrolling" : "Click to pause scrolling"}
+      >
+        <div 
+          className="animate-marquee font-medium tracking-wide text-indigo-100"
+          style={{ animationPlayState: isPaused ? 'paused' : 'running' }}
+        >
           {ratesText}
         </div>
       </div>
