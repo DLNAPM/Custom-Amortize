@@ -67,7 +67,7 @@ export default function AmortizationCalculator({
   const [addExtraType, setAddExtraType] = useState<'period' | 'date'>('period');
   const [extraPaymentDate, setExtraPaymentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [activeExtraAction, setActiveExtraAction] = useState<'add' | 'remove'>('add');
-  const [removePaymentKey, setRemovePaymentKey] = useState<string>('');
+  const [selectedRemoveKeys, setSelectedRemoveKeys] = useState<string[]>([]);
 
   const [smartPrompt, setSmartPrompt] = useState("");
   const [isGeneratingSmart, setIsGeneratingSmart] = useState(false);
@@ -146,6 +146,36 @@ export default function AmortizationCalculator({
   }), [loanAmount, actualDownPayment, annualInterestRate, loanTermYears, paymentsPerYear, monthlyExtraPayment, extraPayments, balloonPaymentYears, startDate]);
 
   const { schedule, summary } = useMemo(() => calculateAmortization(input), [input]);
+
+  const sortedExtraPaymentsList = useMemo(() => {
+    const list: Array<{ key: string; date: Date; label: string; amount: number }> = [];
+
+    Object.entries(extraPayments).forEach(([key, val]) => {
+      const isDateBased = typeof val === 'object' && val !== null && 'date' in val;
+      if (isDateBased) {
+        const d = new Date((val as any).date);
+        list.push({
+          key,
+          date: isNaN(d.getTime()) ? new Date() : d,
+          label: `Date: ${format(isNaN(d.getTime()) ? new Date() : d, 'MMM d, yyyy')}`,
+          amount: (val as any).amount
+        });
+      } else {
+        const periodNum = Number(key);
+        const matchedRow = schedule.find(row => row.period === periodNum);
+        const resolvedDate = matchedRow ? matchedRow.date : new Date();
+        list.push({
+          key,
+          date: resolvedDate,
+          label: `Period ${key} (${matchedRow && !isNaN(matchedRow.date.getTime()) ? format(matchedRow.date, 'MMM yyyy') : 'Calculated date'})`,
+          amount: Number(val)
+        });
+      }
+    });
+
+    list.sort((a, b) => a.date.getTime() - b.date.getTime());
+    return list;
+  }, [extraPayments, schedule]);
 
   const handleAddExtraPayment = () => {
     if (extraPaymentAmount <= 0) return;
@@ -635,7 +665,10 @@ export default function AmortizationCalculator({
         <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-gray-100 pb-4">
           <div className="flex flex-wrap gap-4 md:gap-6">
             <button
-              onClick={() => setActiveExtraAction('add')}
+              onClick={() => {
+                setActiveExtraAction('add');
+                setSelectedRemoveKeys([]);
+              }}
               className={`text-base md:text-lg font-bold pb-2 border-b-2 transition-all ${
                 activeExtraAction === 'add' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
@@ -643,7 +676,10 @@ export default function AmortizationCalculator({
               Add Extra Principal Payment
             </button>
             <button
-              onClick={() => setActiveExtraAction('remove')}
+              onClick={() => {
+                setActiveExtraAction('remove');
+                setSelectedRemoveKeys([]);
+              }}
               className={`text-base md:text-lg font-bold pb-2 border-b-2 transition-all ${
                 activeExtraAction === 'remove' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'
               }`}
@@ -742,40 +778,94 @@ export default function AmortizationCalculator({
             </div>
           </>
         ) : (
-          <div className="flex flex-wrap items-end gap-4 animate-fadeIn">
-            <div className="flex-1 min-w-[280px] max-w-md">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Extra Payment to Remove</label>
-              <select
-                value={removePaymentKey}
-                onChange={(e) => setRemovePaymentKey(e.target.value)}
-                className="block w-full px-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-red-500 focus:border-red-500 sm:text-sm cursor-pointer"
-              >
-                <option value="">-- Choose an Extra Payment to Remove --</option>
-                {Object.entries(extraPayments).map(([key, val]) => {
-                  const isDateBased = typeof val === 'object' && val !== null && 'date' in val;
-                  const amount = isDateBased ? (val as any).amount : val;
-                  const label = isDateBased ? `Date: ${format(new Date((val as any).date), 'MMM d, yyyy')}` : `Period ${key}`;
+          <div className="w-full flex flex-col gap-4 animate-fadeIn">
+            <div className="flex justify-between items-center">
+              <label className="block text-sm font-semibold text-gray-700">
+                Select Extra Payments to Remove ({selectedRemoveKeys.length} selected)
+              </label>
+              {sortedExtraPaymentsList.length > 0 && (
+                <div className="flex gap-4 text-xs font-semibold text-red-600">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRemoveKeys(sortedExtraPaymentsList.map(item => item.key))}
+                    className="hover:underline focus:outline-none cursor-pointer"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-gray-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRemoveKeys([])}
+                    className="hover:underline focus:outline-none cursor-pointer"
+                  >
+                    Deselect All
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {sortedExtraPaymentsList.length === 0 ? (
+              <div className="bg-gray-50 border border-dashed border-gray-200 rounded-xl py-8 px-4 text-center text-sm text-gray-500">
+                No extra payments scheduled yet. Change tab to "Add Extra Principal Payment" to add some.
+              </div>
+            ) : (
+              <div className="border border-gray-200 rounded-xl bg-gray-50 max-h-60 overflow-y-auto divide-y divide-gray-200 shadow-inner">
+                {sortedExtraPaymentsList.map((item) => {
+                  const isChecked = selectedRemoveKeys.includes(item.key);
                   return (
-                    <option key={key} value={key}>
-                      {label} ({formatCurrency(amount as number)})
-                    </option>
+                    <div
+                      key={item.key}
+                      onClick={() => {
+                        setSelectedRemoveKeys(prev =>
+                          prev.includes(item.key)
+                            ? prev.filter(k => k !== item.key)
+                            : [...prev, item.key]
+                        );
+                      }}
+                      className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${
+                        isChecked ? 'bg-red-50 hover:bg-red-100/70' : 'hover:bg-gray-100/80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {}} // handled by click container
+                          className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                        />
+                        <span className="text-sm font-medium text-gray-850">
+                          {item.label}
+                        </span>
+                      </div>
+                      <span className="text-sm font-bold text-gray-900 bg-white border border-gray-100 rounded-md px-2 py-0.5 shadow-sm">
+                        {formatCurrency(item.amount)}
+                      </span>
+                    </div>
                   );
                 })}
-              </select>
+              </div>
+            )}
+
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={() => {
+                  if (selectedRemoveKeys.length > 0) {
+                    saveHistory();
+                    setExtraPayments(prev => {
+                      const next = { ...prev };
+                      selectedRemoveKeys.forEach(k => delete next[k]);
+                      return next;
+                    });
+                    setSelectedRemoveKeys([]);
+                  }
+                }}
+                disabled={selectedRemoveKeys.length === 0}
+                className="flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:hover:bg-red-600 transition-colors font-semibold text-sm shadow-sm cursor-pointer"
+              >
+                <Trash2 className="w-4 h-4" />
+                Remove Selected ({selectedRemoveKeys.length})
+              </button>
             </div>
-            <button
-              onClick={() => {
-                if (removePaymentKey) {
-                  handleRemoveExtraPayment(removePaymentKey);
-                  setRemovePaymentKey('');
-                }
-              }}
-              disabled={!removePaymentKey}
-              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:hover:bg-red-600 transition-colors font-medium text-sm h-[38px] cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" />
-              Remove Selected
-            </button>
           </div>
         )}
 
