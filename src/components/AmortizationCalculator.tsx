@@ -66,6 +66,8 @@ export default function AmortizationCalculator({
 
   const [addExtraType, setAddExtraType] = useState<'period' | 'date'>('period');
   const [extraPaymentDate, setExtraPaymentDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [activeExtraAction, setActiveExtraAction] = useState<'add' | 'remove'>('add');
+  const [removePaymentKey, setRemovePaymentKey] = useState<string>('');
 
   const [smartPrompt, setSmartPrompt] = useState("");
   const [isGeneratingSmart, setIsGeneratingSmart] = useState(false);
@@ -630,94 +632,152 @@ export default function AmortizationCalculator({
 
       {/* Extra Payments Manager */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-gray-900">Add Extra Principal Payment</h2>
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6 border-b border-gray-100 pb-4">
+          <div className="flex flex-wrap gap-4 md:gap-6">
+            <button
+              onClick={() => setActiveExtraAction('add')}
+              className={`text-base md:text-lg font-bold pb-2 border-b-2 transition-all ${
+                activeExtraAction === 'add' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              Add Extra Principal Payment
+            </button>
+            <button
+              onClick={() => setActiveExtraAction('remove')}
+              className={`text-base md:text-lg font-bold pb-2 border-b-2 transition-all ${
+                activeExtraAction === 'remove' ? 'border-gray-900 text-gray-900' : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              Remove Extra Principal Payment
+            </button>
+          </div>
           {extraPaymentsHistory.length > 0 && (
             <button
               onClick={handleUndo}
-              className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+              className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors self-end sm:self-auto"
             >
               <Undo2 className="w-4 h-4" />
               Undo
             </button>
           )}
         </div>
-        <div className="mb-4 flex gap-4 border-b border-gray-200 pb-2">
-          <button
-            onClick={() => setAddExtraType('period')}
-            className={`text-sm font-medium px-2 py-1 border-b-2 transition-colors ${addExtraType === 'period' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            By Period
-          </button>
-          <button
-            onClick={() => setAddExtraType('date')}
-            className={`text-sm font-medium px-2 py-1 border-b-2 transition-colors ${addExtraType === 'date' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
-          >
-            By Date
-          </button>
-        </div>
 
-        <div className="flex flex-wrap items-end gap-4">
-          {addExtraType === 'period' ? (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start Period</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={summary.scheduledPaymentsCount}
-                  value={extraPaymentPeriod}
-                  onChange={(e) => setExtraPaymentPeriod(Number(e.target.value))}
-                  className="block w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">End Period (Optional)</label>
-                <input
-                  type="number"
-                  min={extraPaymentPeriod}
-                  max={summary.scheduledPaymentsCount}
-                  value={extraPaymentEndPeriod}
-                  onChange={(e) => setExtraPaymentEndPeriod(e.target.value === '' ? '' : Number(e.target.value))}
-                  placeholder="e.g. 12"
-                  className="block w-36 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-            </>
-          ) : (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
-              <input
-                type="date"
-                value={extraPaymentDate}
-                onChange={(e) => setExtraPaymentDate(e.target.value)}
-                className="block w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
+        {activeExtraAction === 'add' ? (
+          <>
+            <div className="mb-4 flex gap-4 border-b border-gray-200 pb-2">
+              <button
+                onClick={() => setAddExtraType('period')}
+                className={`text-sm font-medium px-2 py-1 border-b-2 transition-colors ${addExtraType === 'period' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                By Period
+              </button>
+              <button
+                onClick={() => setAddExtraType('date')}
+                className={`text-sm font-medium px-2 py-1 border-b-2 transition-colors ${addExtraType === 'date' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                By Date
+              </button>
             </div>
-          )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Extra Amount</label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <DollarSign className="h-4 w-4 text-gray-400" />
+
+            <div className="flex flex-wrap items-end gap-4 animate-fadeIn">
+              {addExtraType === 'period' ? (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Period</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={summary.scheduledPaymentsCount}
+                      value={extraPaymentPeriod}
+                      onChange={(e) => setExtraPaymentPeriod(Number(e.target.value))}
+                      className="block w-28 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Period (Optional)</label>
+                    <input
+                      type="number"
+                      min={extraPaymentPeriod}
+                      max={summary.scheduledPaymentsCount}
+                      value={extraPaymentEndPeriod}
+                      onChange={(e) => setExtraPaymentEndPeriod(e.target.value === '' ? '' : Number(e.target.value))}
+                      placeholder="e.g. 12"
+                      className="block w-36 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment Date</label>
+                  <input
+                    type="date"
+                    value={extraPaymentDate}
+                    onChange={(e) => setExtraPaymentDate(e.target.value)}
+                    className="block w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Extra Amount</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <DollarSign className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    value={extraPaymentAmount}
+                    onChange={(e) => setExtraPaymentAmount(Number(e.target.value))}
+                    className="block w-32 pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
+                </div>
               </div>
-              <input
-                type="number"
-                min={0}
-                value={extraPaymentAmount}
-                onChange={(e) => setExtraPaymentAmount(Number(e.target.value))}
-                className="block w-32 pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />
+              <button
+                onClick={handleAddExtraPayment}
+                className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm h-[38px] cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Add
+              </button>
             </div>
+          </>
+        ) : (
+          <div className="flex flex-wrap items-end gap-4 animate-fadeIn">
+            <div className="flex-1 min-w-[280px] max-w-md">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Select Extra Payment to Remove</label>
+              <select
+                value={removePaymentKey}
+                onChange={(e) => setRemovePaymentKey(e.target.value)}
+                className="block w-full px-3 py-2 border border-gray-300 bg-white rounded-lg focus:ring-red-500 focus:border-red-500 sm:text-sm cursor-pointer"
+              >
+                <option value="">-- Choose an Extra Payment to Remove --</option>
+                {Object.entries(extraPayments).map(([key, val]) => {
+                  const isDateBased = typeof val === 'object' && val !== null && 'date' in val;
+                  const amount = isDateBased ? (val as any).amount : val;
+                  const label = isDateBased ? `Date: ${format(new Date((val as any).date), 'MMM d, yyyy')}` : `Period ${key}`;
+                  return (
+                    <option key={key} value={key}>
+                      {label} ({formatCurrency(amount as number)})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <button
+              onClick={() => {
+                if (removePaymentKey) {
+                  handleRemoveExtraPayment(removePaymentKey);
+                  setRemovePaymentKey('');
+                }
+              }}
+              disabled={!removePaymentKey}
+              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:hover:bg-red-600 transition-colors font-medium text-sm h-[38px] cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              Remove Selected
+            </button>
           </div>
-          <button
-            onClick={handleAddExtraPayment}
-            className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors font-medium text-sm h-[38px]"
-          >
-            <Plus className="w-4 h-4" />
-            Add
-          </button>
-        </div>
+        )}
 
         {Object.keys(extraPayments).length > 0 && (
           <div className="mt-6">
