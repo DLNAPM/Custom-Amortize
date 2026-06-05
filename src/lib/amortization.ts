@@ -8,6 +8,7 @@ export interface AmortizationRow {
   interest: number;
   balance: number;
   isBalloonPayment?: boolean;
+  extraPaymentKey?: string;
 }
 
 export interface AmortizationSummary {
@@ -168,6 +169,10 @@ export function calculateAmortization(input: AmortizationInput): {
       totalExtraPayments += extraPayment;
       actualPaymentsCount++;
 
+      const periodKey = period.toString();
+      const hasPeriodExtra = extraPayments[periodKey] !== undefined && 
+                             !(extraPayments[periodKey] && typeof extraPayments[periodKey] === 'object' && extraPayments[periodKey].date);
+
       schedule.push({
         period,
         date: event.date,
@@ -177,7 +182,8 @@ export function calculateAmortization(input: AmortizationInput): {
         principal: principalPayment,
         interest,
         balance,
-        isBalloonPayment
+        isBalloonPayment,
+        extraPaymentKey: hasPeriodExtra ? periodKey : undefined
       });
     } else if (event.type === 'extra') {
       const appliedExtra = Math.min(balance, event.amount!);
@@ -193,7 +199,8 @@ export function calculateAmortization(input: AmortizationInput): {
         totalPayment: appliedExtra,
         principal: appliedExtra,
         interest: 0,
-        balance
+        balance,
+        extraPaymentKey: event.id
       });
       subPeriodCounter++;
     }

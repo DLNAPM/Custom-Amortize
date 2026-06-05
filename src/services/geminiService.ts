@@ -40,10 +40,10 @@ export async function searchInterestRates(prompt: string) {
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: prompt,
-    tools: [
-      { googleSearch: {} }
-    ],
     config: {
+      tools: [
+        { googleSearch: {} }
+      ],
       systemInstruction: "You are a helpful financial assistant. Answer the user's question about interest rates using Google Search. Provide a concise, helpful answer."
     }
   });
@@ -55,8 +55,8 @@ export async function fetchRatesForZip(zipCode: string) {
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Find the current average home mortgage and auto loan interest rates for zip code ${zipCode}. Also find the average Credit Union rates for the same.`,
-    tools: [{ googleSearch: {} }],
     config: {
+      tools: [{ googleSearch: {} }],
       systemInstruction: "You are a financial data assistant. Return ONLY a short, single-line string formatted exactly like this: '📍 Zip [ZIP] | 🏦 Banks - 🏠 30-Year Home: [Rate]% | 🚗 New Auto: [Rate]% | 🚗 Used Auto: [Rate]% || 🏛️ Credit Unions - 🏠 30-Year Home: [Rate]% | 🚗 New Auto: [Rate]% | 🚗 Used Auto: [Rate]%'. Do not include any other text or markdown."
     }
   });

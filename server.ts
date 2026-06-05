@@ -13,6 +13,7 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = process.env.PORT || 3000;
+  const portNumber = typeof PORT === "string" ? parseInt(PORT, 10) : PORT;
 
   // Initialize Stripe lazily to avoid crashing on startup if key is missing
   let stripeClient: Stripe | null = null;
@@ -32,7 +33,8 @@ async function startServer() {
     "/api/webhook",
     express.raw({ type: "application/json" }),
     async (req, res) => {
-      const sig = req.headers["stripe-signature"];
+      const sigHeader = req.headers["stripe-signature"];
+      const sig = Array.isArray(sigHeader) ? sigHeader[0] : sigHeader;
       const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
       if (!sig || !webhookSecret) {
@@ -149,8 +151,8 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  app.listen(portNumber, "0.0.0.0", () => {
+    console.log(`Server running on http://localhost:${portNumber}`);
   });
 }
 

@@ -58,7 +58,7 @@ export default function AmortizationCalculator({
   const [extraPaymentAmount, setExtraPaymentAmount] = useState<number>(100);
 
   // Context Menu & Quick Add Modal State
-  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, period: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, period: number | string, extraPaymentKey?: string } | null>(null);
   const [quickAddModal, setQuickAddModal] = useState<{ startPeriod: number } | null>(null);
   const [quickAddCount, setQuickAddCount] = useState<number>(1);
   const [quickAddAmount, setQuickAddAmount] = useState<number>(100);
@@ -99,9 +99,9 @@ export default function AmortizationCalculator({
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
-  const handleContextMenu = (e: React.MouseEvent, period: number) => {
+  const handleContextMenu = (e: React.MouseEvent, period: number | string, extraPaymentKey?: string) => {
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, period });
+    setContextMenu({ x: e.clientX, y: e.clientY, period, extraPaymentKey });
   };
 
   const handleQuickAddSubmit = () => {
@@ -800,8 +800,12 @@ export default function AmortizationCalculator({
               {schedule.map((row, idx) => (
                 <tr 
                   key={`${row.period}-${idx}`} 
-                  className={`${row.isBalloonPayment ? 'bg-yellow-50/80 border-y-2 border-yellow-200' : row.extraPayment > 0 ? 'bg-blue-50/50' : ''} hover:bg-gray-50 transition-colors ${typeof row.period === 'number' ? 'cursor-context-menu' : ''}`}
-                  onContextMenu={(e) => typeof row.period === 'number' ? handleContextMenu(e, row.period) : undefined}
+                  className={`${row.isBalloonPayment ? 'bg-yellow-50/80 border-y-2 border-yellow-200' : row.extraPayment > 0 ? 'bg-blue-50/50' : ''} hover:bg-gray-50 transition-colors ${typeof row.period === 'number' || row.extraPaymentKey ? 'cursor-context-menu' : ''} group`}
+                  onContextMenu={(e) => {
+                    if (typeof row.period === 'number' || row.extraPaymentKey) {
+                      handleContextMenu(e, row.period, row.extraPaymentKey);
+                    }
+                  }}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {row.period}
@@ -810,11 +814,25 @@ export default function AmortizationCalculator({
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{!isNaN(row.date.getTime()) ? format(row.date, 'MMM yyyy') : 'Invalid Date'}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(row.scheduledPayment)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                    {row.extraPayment > 0 ? (
-                      <span className="text-green-600 font-medium">+{formatCurrency(row.extraPayment)}</span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
+                    <div className="flex items-center justify-end gap-1.5">
+                      {row.extraPayment > 0 ? (
+                        <span className="text-green-600 font-medium">+{formatCurrency(row.extraPayment)}</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                      {row.extraPaymentKey && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveExtraPayment(row.extraPaymentKey!);
+                          }}
+                          className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-1 rounded transition-all md:opacity-0 group-hover:opacity-100 focus:opacity-100 cursor-pointer"
+                          title="Remove Extra Principal Payment"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">{formatCurrency(row.totalPayment)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{formatCurrency(row.principal)}</td>
@@ -833,25 +851,40 @@ export default function AmortizationCalculator({
           className="fixed bg-white border border-gray-200 shadow-xl rounded-lg py-1 z-50 min-w-[240px]"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
-          <button 
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={contextMenu.period <= 1}
-            onClick={() => {
-              setQuickAddModal({ startPeriod: contextMenu.period - 1 });
-              setQuickAddCount(1);
-            }}
-          >
-            Add Extra Payment Before (Period {contextMenu.period - 1})
-          </button>
-          <button 
-            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            onClick={() => {
-              setQuickAddModal({ startPeriod: contextMenu.period + 1 });
-              setQuickAddCount(1);
-            }}
-          >
-            Add Extra Payment After (Period {contextMenu.period + 1})
-          </button>
+          {typeof contextMenu.period === 'number' && (
+            <>
+              <button 
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={(contextMenu.period as number) <= 1}
+                onClick={() => {
+                  setQuickAddModal({ startPeriod: (contextMenu.period as number) - 1 });
+                  setQuickAddCount(1);
+                }}
+              >
+                Add Extra Payment Before (Period {(contextMenu.period as number) - 1})
+              </button>
+              <button 
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                onClick={() => {
+                  setQuickAddModal({ startPeriod: (contextMenu.period as number) + 1 });
+                  setQuickAddCount(1);
+                }}
+              >
+                Add Extra Payment After (Period {(contextMenu.period as number) + 1})
+              </button>
+            </>
+          )}
+          {contextMenu.extraPaymentKey && (
+            <button 
+              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium flex items-center gap-2"
+              onClick={() => {
+                handleRemoveExtraPayment(contextMenu.extraPaymentKey!);
+              }}
+            >
+              <Trash2 className="w-4 h-4 text-red-500" />
+              Remove Extra Payment
+            </button>
+          )}
         </div>
       )}
 
