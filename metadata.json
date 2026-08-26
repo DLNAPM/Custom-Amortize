@@ -1,5 +1,6 @@
 {
   "name": "Custom Amortize",
-  "description": "",
-  "requestFramePermissions": []
+  "description": "Amortization schedule calculator with customizable extra principal payments and rate comparisons.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
